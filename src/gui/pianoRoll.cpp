@@ -277,14 +277,6 @@ void FurnaceGUI::drawPianoRoll() {
   }
 
   if (ImGui::BeginPopup("##prChPop")) {
-    static const ImVec4 chTypeCol[6]={
-      ImVec4(0.95f,0.75f,0.15f,1.0f),
-      ImVec4(0.25f,0.65f,1.0f, 1.0f),
-      ImVec4(0.90f,0.35f,0.25f,1.0f),
-      ImVec4(0.25f,0.85f,0.45f,1.0f),
-      ImVec4(0.70f,0.35f,0.90f,1.0f),
-      ImVec4(0.75f,0.95f,0.25f,1.0f),
-    };
     static const char* chTypeName[6]={"FM","Pulse","Noise","Wave","PCM","OP"};
 
     auto isBound=[&](int ch)->int {
@@ -315,7 +307,7 @@ void FurnaceGUI::drawPianoRoll() {
       }
 
       int ct=ImClamp(e->getChannelType(ch),0,5);
-      ImVec4 col=chTypeCol[ct];
+      ImVec4 col=uiColors[GUI_COLOR_CHANNEL_FM+ct];
       bool isSel=(ch==prChan&&!prPolyEnabled);
       bool inGrp=(boundGi>=0);
 
@@ -352,20 +344,12 @@ void FurnaceGUI::drawPianoRoll() {
     ImGui::TextDisabled("  ");
     for (int i=0;i<6;i++) {
       ImGui::SameLine(0,5.0f*(float)dpiScale);
-      ImGui::TextColored(chTypeCol[i],"\xe2\x97\x8f %s",chTypeName[i]);
+      ImGui::TextColored(uiColors[GUI_COLOR_CHANNEL_FM+i],"\xe2\x97\x8f %s",chTypeName[i]);
     }
     ImGui::EndPopup();
   }
 
   if (ImGui::BeginPopup("##prPolyPop")) {
-    static const ImVec4 chTypeCol2[6]={
-      ImVec4(0.95f,0.75f,0.15f,1.0f),
-      ImVec4(0.25f,0.65f,1.0f, 1.0f),
-      ImVec4(0.90f,0.35f,0.25f,1.0f),
-      ImVec4(0.25f,0.85f,0.45f,1.0f),
-      ImVec4(0.70f,0.35f,0.90f,1.0f),
-      ImVec4(0.75f,0.95f,0.25f,1.0f),
-    };
     static const char* chTypeName2[6]={"FM","Pulse","Noise","Wave","PCM","OP"};
 
     auto isBound2=[&](int ch)->int {
@@ -415,7 +399,7 @@ void FurnaceGUI::drawPianoRoll() {
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,ImVec2(2.0f*(float)dpiScale,2.0f*(float)dpiScale));
         for (int ch=g.from;ch<=g.to;ch++) {
           int ct=ImClamp(e->getChannelType(ch),0,5);
-          ImVec4 col=chTypeCol2[ct];
+          ImVec4 col=uiColors[GUI_COLOR_CHANNEL_FM+ct];
           ImGui::PushStyleColor(ImGuiCol_Button,ImVec4(col.x*0.4f,col.y*0.4f,col.z*0.4f,0.9f));
           ImGui::PushStyleColor(ImGuiCol_ButtonHovered,ImVec4(col.x*0.6f,col.y*0.6f,col.z*0.6f,1.0f));
           ImGui::PushStyleColor(ImGuiCol_ButtonActive,ImVec4(col.x*0.75f,col.y*0.75f,col.z*0.75f,1.0f));

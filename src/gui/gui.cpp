@@ -5234,6 +5234,7 @@ bool FurnaceGUI::loop() {
           if (ImGui::MenuItem(_("chip manager"),BIND_FOR(GUI_ACTION_WINDOW_SYS_MANAGER),sysManagerOpen)) sysManagerOpen=!sysManagerOpen;
           if (ImGui::MenuItem(_("orders"),BIND_FOR(GUI_ACTION_WINDOW_ORDERS),ordersOpen)) ordersOpen=!ordersOpen;
           if (ImGui::MenuItem(_("pattern"),BIND_FOR(GUI_ACTION_WINDOW_PATTERN),patternOpen)) patternOpen=!patternOpen;
+          if (ImGui::MenuItem(_("piano roll"),NULL,pianoRollOpen)) pianoRollOpen=!pianoRollOpen;
           if (ImGui::MenuItem(_("pattern manager"),BIND_FOR(GUI_ACTION_WINDOW_PAT_MANAGER),patManagerOpen)) patManagerOpen=!patManagerOpen;
           if (ImGui::MenuItem(_("mixer"),BIND_FOR(GUI_ACTION_WINDOW_MIXER),mixerOpen)) mixerOpen=!mixerOpen;
           if (ImGui::MenuItem(_("compatibility flags"),BIND_FOR(GUI_ACTION_WINDOW_COMPAT_FLAGS),compatFlagsOpen)) compatFlagsOpen=!compatFlagsOpen;
@@ -5280,7 +5281,6 @@ bool FurnaceGUI::loop() {
         if (ImGui::MenuItem(_("effect list"),BIND_FOR(GUI_ACTION_WINDOW_EFFECT_LIST),effectListOpen)) effectListOpen=!effectListOpen;
         if (ImGui::MenuItem(_("play/edit controls"),BIND_FOR(GUI_ACTION_WINDOW_EDIT_CONTROLS),editControlsOpen)) editControlsOpen=!editControlsOpen;
         if (ImGui::MenuItem(_("piano/input pad"),BIND_FOR(GUI_ACTION_WINDOW_PIANO),pianoOpen)) pianoOpen=!pianoOpen;
-        if (ImGui::MenuItem(_("piano roll"),NULL,pianoRollOpen)) pianoRollOpen=!pianoRollOpen;
         if (ImGui::MenuItem(_("reference music player"),BIND_FOR(GUI_ACTION_WINDOW_REF_PLAYER),refPlayerOpen)) refPlayerOpen=!refPlayerOpen;
         if (ImGui::MenuItem(_("multi-ins setup"),BIND_FOR(GUI_ACTION_WINDOW_MULTI_INS_SETUP),multiInsSetupOpen)) multiInsSetupOpen=!multiInsSetupOpen;
         if (spoilerOpen) if (ImGui::MenuItem(_("spoiler"),NULL,spoilerOpen)) spoilerOpen=!spoilerOpen;
