@@ -986,7 +986,7 @@ void FurnaceGUI::drawPianoRoll() {
         float bf=(0.65f+0.35f*((float)(nv/12)/14.0f))*(inSel?1.5f:1.0f);
         int noteAlpha=isCur?255:alphaScale;
         ImVec4 noteColor4=cNote4;
-        if (prColorByIns&&isCur) {
+        if (prColorByIns) {
           short ins=viPat->newData[r][DIV_PAT_INS];
           if (ins>=0) noteColor4=prInsColor4(ins);
         }
@@ -1238,13 +1238,42 @@ void FurnaceGUI::drawPianoRoll() {
       }
 
       if (!inPiano&&mrow>=0&&mrow<patLen&&prNoteTooltip) {
-        short hNv=pat->newData[mrow][DIV_PAT_NOTE];
-        if (hNv>=0&&hNv<NOTES&&!prIsSpecial(hNv)) {
-          short hIns=pat->newData[mrow][DIV_PAT_INS];
-          if (hIns>=0&&hIns<(int)e->song.ins.size()) {
-            ImGui::SetTooltip("%s  i:%s",noteNames[hNv],e->song.ins[hIns]->name.c_str());
-          } else {
-            ImGui::SetTooltip("%s",noteNames[hNv]);
+        int hNoteRow=-1;
+        short hNv=-1;
+        short hNv2=pat->newData[mrow][DIV_PAT_NOTE];
+        if (hNv2>=0&&hNv2<NOTES&&!prIsSpecial(hNv2)) {
+          hNoteRow=mrow; hNv=hNv2;
+        } else {
+          for (int rr=mrow-1;rr>=0&&rr>=mrow-512;rr--) {
+            short sv=pat->newData[rr][DIV_PAT_NOTE];
+            if (sv==-1) continue;
+            if (sv>=0&&sv<NOTES&&!prIsSpecial(sv)) {
+              int dur=prInferDuration(pat,rr,patLen);
+              if (mrow<rr+dur&&mnote==sv) { hNoteRow=rr; hNv=sv; }
+            }
+            break;
+          }
+        }
+        if (hNv>=0&&hNoteRow>=0) {
+          int hDur=prInferDuration(pat,hNoteRow,patLen);
+          short hIns=pat->newData[hNoteRow][DIV_PAT_INS];
+          short hVol=pat->newData[hNoteRow][DIV_PAT_VOL];
+          float nx0=ox+pianoW+(float)ord*totalW+hNoteRow*rowW+1;
+          float nx1=ox+pianoW+(float)ord*totalW+(hNoteRow+hDur)*rowW-1;
+          float ny0=oy+(NOTES-1-hNv)*noteH+1;
+          float ny1=ny0+noteH-2;
+          if (mp.x>=nx0&&mp.x<=nx1&&mp.y>=ny0&&mp.y<=ny1) {
+            if (hIns>=0&&hIns<(int)e->song.ins.size()) {
+              if (hVol>=0)
+                ImGui::SetTooltip("%s  len:%d  ins:%d %s  vol:%d",noteNames[hNv],hDur,hIns,e->song.ins[hIns]->name.c_str(),(int)hVol);
+              else
+                ImGui::SetTooltip("%s  len:%d  ins:%d %s",noteNames[hNv],hDur,hIns,e->song.ins[hIns]->name.c_str());
+            } else {
+              if (hVol>=0)
+                ImGui::SetTooltip("%s  len:%d  vol:%d",noteNames[hNv],hDur,(int)hVol);
+              else
+                ImGui::SetTooltip("%s  len:%d",noteNames[hNv],hDur);
+            }
           }
         }
       }
