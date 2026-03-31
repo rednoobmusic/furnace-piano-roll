@@ -672,6 +672,13 @@ class DivEngine {
     // dispatch a command
     int dispatchCmd(DivCommand c);
 
+    // send a raw effect code+value to a channel (for live preview)
+    void previewEffect(int ch, unsigned char effect, unsigned char effectVal) {
+      perSystemPreEffect(ch,effect,effectVal);
+      perSystemEffect(ch,effect,effectVal);
+      perSystemPostEffect(ch,effect,effectVal);
+    }
+
     // get system IDs
     static DivSystem systemFromFileFur(unsigned char val);
     static unsigned char systemToFileFur(DivSystem val);
@@ -1072,6 +1079,9 @@ class DivEngine {
 
     // go to order
     void setOrder(unsigned char order);
+
+    // go to order + specific row
+    void seekTo(unsigned char order, int row);
 
     // update system flags
     void updateSysFlags(int system, bool restart, bool render);
