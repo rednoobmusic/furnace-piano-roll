@@ -2437,6 +2437,7 @@ class FurnaceGUI {
   bool waveListOpen, waveEditOpen, sampleListOpen, sampleEditOpen, aboutOpen, settingsOpen;
   bool mixerOpen, debugOpen, inspectorOpen, oscOpen, volMeterOpen, statsOpen, compatFlagsOpen;
   bool pianoOpen, notesOpen, tunerOpen, spectrumOpen, channelsOpen, regViewOpen, logOpen, effectListOpen, chanOscOpen;
+  bool pianoRollOpen;
   bool subSongsOpen, findOpen, spoilerOpen, patManagerOpen, sysManagerOpen, clockOpen, speedOpen;
   bool groovesOpen, xyOscOpen, memoryOpen, csPlayerOpen, cvOpen, userPresetsOpen, refPlayerOpen;
   bool multiInsSetupOpen;
@@ -3102,6 +3103,7 @@ class FurnaceGUI {
   void drawMemory();
   void drawCompatFlags();
   void drawPiano();
+  void drawPianoRoll();
   void drawNotes(bool asChild=false);
   void drawTuner();
   void drawSpectrum();

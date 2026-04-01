@@ -4225,6 +4225,7 @@ bool FurnaceGUI::loop() {
   DECLARE_METRIC(memory)
   DECLARE_METRIC(compatFlags)
   DECLARE_METRIC(piano)
+  DECLARE_METRIC(pianoRoll)
   DECLARE_METRIC(notes)
   DECLARE_METRIC(tuner)
   DECLARE_METRIC(spectrum)
@@ -4866,6 +4867,7 @@ bool FurnaceGUI::loop() {
         IMPORT_CLOSE(statsOpen);
         IMPORT_CLOSE(compatFlagsOpen);
         IMPORT_CLOSE(pianoOpen);
+        IMPORT_CLOSE(pianoRollOpen);
         IMPORT_CLOSE(notesOpen);
         IMPORT_CLOSE(tunerOpen);
         IMPORT_CLOSE(spectrumOpen);
@@ -5221,6 +5223,7 @@ bool FurnaceGUI::loop() {
           if (ImGui::MenuItem(_("orders"),BIND_FOR(GUI_ACTION_WINDOW_ORDERS),ordersOpen)) ordersOpen=!ordersOpen;
           if (ImGui::MenuItem(_("pattern"),BIND_FOR(GUI_ACTION_WINDOW_PATTERN),patternOpen)) patternOpen=!patternOpen;
           if (ImGui::MenuItem(_("pattern manager"),BIND_FOR(GUI_ACTION_WINDOW_PAT_MANAGER),patManagerOpen)) patManagerOpen=!patManagerOpen;
+          if (ImGui::MenuItem(_("piano roll"),NULL,pianoRollOpen)) pianoRollOpen=!pianoRollOpen;
           if (ImGui::MenuItem(_("mixer"),BIND_FOR(GUI_ACTION_WINDOW_MIXER),mixerOpen)) mixerOpen=!mixerOpen;
           if (ImGui::MenuItem(_("compatibility flags"),BIND_FOR(GUI_ACTION_WINDOW_COMPAT_FLAGS),compatFlagsOpen)) compatFlagsOpen=!compatFlagsOpen;
           ImGui::EndMenu();
@@ -5520,6 +5523,7 @@ bool FurnaceGUI::loop() {
       MEASURE(memory,drawMemory());
       MEASURE(compatFlags,drawCompatFlags());
       MEASURE(piano,drawPiano());
+      MEASURE(pianoRoll,drawPianoRoll());
       MEASURE(notes,drawNotes());
       MEASURE(tuner,drawTuner());
       MEASURE(spectrum,drawSpectrum());
@@ -8414,6 +8418,7 @@ void FurnaceGUI::syncState() {
 #else
   pianoOpen=e->getConfBool("pianoOpen",false);
 #endif
+  pianoRollOpen=e->getConfBool("pianoRollOpen",false);
   notesOpen=e->getConfBool("notesOpen",false);
   tunerOpen=e->getConfBool("tunerOpen",false);
   spectrumOpen=e->getConfBool("spectrumOpen",false);
@@ -8595,6 +8600,7 @@ void FurnaceGUI::commitState(DivConfig& conf) {
   conf.set("statsOpen",statsOpen);
   conf.set("compatFlagsOpen",compatFlagsOpen);
   conf.set("pianoOpen",pianoOpen);
+  conf.set("pianoRollOpen",pianoRollOpen);
   conf.set("notesOpen",notesOpen);
   conf.set("tunerOpen",tunerOpen);
   conf.set("spectrumOpen",spectrumOpen);
@@ -9041,6 +9047,7 @@ FurnaceGUI::FurnaceGUI():
   statsOpen(false),
   compatFlagsOpen(false),
   pianoOpen(false),
+  pianoRollOpen(false),
   notesOpen(false),
   tunerOpen(false),
   spectrumOpen(false),
