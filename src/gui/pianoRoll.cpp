@@ -70,6 +70,7 @@ static int   prDragDeltaR=0,  prDragDeltaN=0;
 static ImVec2 prDragMouseStart={0,0};
 struct PrDragNote { int row, endRow, chan; short note, ins, vol; };
 static std::vector<PrDragNote> prDragBuf;
+static bool  prDragHasCopy=false;
 static int prPreviewTimer=0;
 static int prPreviewChan=-1;
 static int prFollowPrevPlayOrd=-1;
@@ -86,6 +87,13 @@ static int   prLastScrollChan=-1;
 static bool  prFxViewAll=false;
 static bool  prFxRows=false;
 static int   prFxPreviewLast=-1;
+static int   prCtxRow=-1, prCtxNote=-1;
+static bool  prFxPickerOpen=false;
+static int   prFxPickerRow=-1;
+static int   prFxPickerEffIdx=0;
+static char  prFxPickerSearch[128]="";
+struct PrFxEntry { unsigned char code; char label[64]; };
+static std::vector<PrFxEntry> prFxPickerList;
 
 struct PrClipEntry { int rowOff; short note; short ins; short vol; };
 static std::vector<PrClipEntry> prClipboard;
@@ -556,9 +564,14 @@ void FurnaceGUI::drawPianoRoll() {
     ImGui::SetNextWindowSize(ImVec2(260.0f*(float)dpiScale,0),ImGuiCond_Appearing);
     if (ImGui::Begin("Piano Roll Keys##prKbdWin",&prKbdShowConfig,ImGuiWindowFlags_NoScrollbar)) {
       ImGui::TextDisabled("Mode keys");
-      ImGui::BulletText("D — Draw mode");
+      ImGui::BulletText("D — Draw mode  (click note = select/drag)");
       ImGui::BulletText("S — Select mode");
-      ImGui::BulletText("P — Paint mode");
+      ImGui::BulletText("P — Paint mode  (drag = paint continuously)");
+      ImGui::Separator();
+      ImGui::TextDisabled("Navigation");
+      ImGui::BulletText("Ctrl+scroll — zoom in/out");
+      ImGui::BulletText("Shift+scroll — scroll horizontally");
+      ImGui::BulletText("Middle-drag — pan");
       ImGui::Separator();
       ImGui::TextDisabled("Selection");
       ImGui::BulletText("Shift+drag — box select (any mode)");
@@ -566,13 +579,13 @@ void FurnaceGUI::drawPianoRoll() {
       ImGui::BulletText("Ctrl+Shift+\xe2\x86\x91\xe2\x86\x93 — transpose \xc2\xb1 octave");
       ImGui::BulletText("Shift+\xe2\x86\x90\xe2\x86\x92 — move selection \xc2\xb1" "1 row");
       ImGui::BulletText("Ctrl+A — select all");
-      ImGui::BulletText("Ctrl+C / Ctrl+V — copy / paste");
-      ImGui::BulletText("Delete — erase selection");
+      ImGui::BulletText("Ctrl+C / Ctrl+X / Ctrl+V — copy / cut / paste");
+      ImGui::BulletText("Delete — erase selection (clears all row data)");
       ImGui::Separator();
       ImGui::TextDisabled("Editing");
-      ImGui::BulletText("Right-click note — erase (Draw/Paint)");
-      ImGui::BulletText("Right-click drag — erase strip");
-      ImGui::BulletText("Drag note edge — resize");
+      ImGui::BulletText("Right-click — context menu (any mode)");
+      ImGui::BulletText("Right-click drag on empty — erase strip");
+      ImGui::BulletText("Drag note right edge — resize (left = shrink)");
     }
     ImGui::End();
   }
@@ -726,6 +739,18 @@ void FurnaceGUI::drawPianoRoll() {
     }
     if (hDelta!=0.0f) {
       prSyncScrollX=ImMax(prSyncScrollX-hDelta*rowW*3.0f,0.0f);
+    }
+    if (ImGui::GetIO().KeyCtrl&&!ImGui::GetIO().KeyShift) {
+      float wh=ImGui::GetIO().MouseWheel;
+      if (wh!=0.0f) {
+        float oldZoom=prZoom;
+        prZoom=ImClamp(prZoom*powf(1.18f,wh),0.125f,16.0f);
+        float rowW_old=ImMax(12.0f*(float)dpiScale*oldZoom,1.0f);
+        float rowW_new=ImMax(12.0f*(float)dpiScale*prZoom,1.0f);
+        float seekPxOld=pianoW+(float)ord*(float)patLen*rowW_old+(float)cursor.y*rowW_old;
+        float seekPxNew=pianoW+(float)ord*(float)patLen*rowW_new+(float)cursor.y*rowW_new;
+        prSyncScrollX=ImMax(seekPxNew-(seekPxOld-prSyncScrollX),0.0f);
+      }
     }
   }
   prPanDX=0.0f;
@@ -1425,7 +1450,7 @@ void FurnaceGUI::drawPianoRoll() {
         e->noteOff(prChan); prPianoHeld=-1;
       }
 
-      if (!inPiano&&mrow>=0&&mrow<patLen&&prNoteTooltip) {
+      if (!inPiano&&mrow>=0&&mrow<patLen) {
         int hNoteRow=-1;
         short hNv=-1;
         short hNv2=pat->newData[mrow][DIV_PAT_NOTE];
@@ -1540,32 +1565,34 @@ void FurnaceGUI::drawPianoRoll() {
               }
             }
             bool onNote=(existNote>=0&&existNote<NOTES&&!prIsSpecial(existNote));
-            if (onNote) {
+            bool clickedOnNotePitch=(onNote&&mnote==existNote);
+            if (onNote&&prMode==0&&!clickedOnNotePitch) {
+              // note exists on this row but click is at a different pitch — place new note at clicked pitch
+              if (hasSel) { prSelRow0=prSelRow1=-1; prSelN0=prSelN1=-1; }
+              prPainting=true; prErasing=false;
+              prPaintStartRow=mrow;
+              prPaintNote=prSnapScale(mnote);
+              int insToUse=(curIns>=0)?curIns:(prevIns>=0?prevIns:-1);
+              if (prPreviewTimer>0&&prPreviewChan>=0) e->noteOff(prPreviewChan);
+              e->noteOn(prChan,insToUse>=0?insToUse:0,prPaintNote-60);
+              prPreviewTimer=15; prPreviewChan=prChan;
+              prepareUndo(GUI_UNDO_PATTERN_EDIT); prNoteUndoOpen=true;
+            } else if (onNote) {
               prPaintLen=prInferDuration(existPat,mrow,patLen);
               prLastNote=existNote;
               if (prMode==0) {
-                bool inSel=hasSel&&mrow>=selR0&&mrow<=selR1&&existNote>=selN0&&existNote<=selN1;
-                if (inSel) {
-                  prDragMaybe=true;
-                  prDragStartR=mrow; prDragStartN=existNote; prDragClickN=prSnapScale(mnote);
-                  prDragDeltaR=0; prDragDeltaN=0;
-                  prDragMouseStart=mp;
-                  prepareUndo(GUI_UNDO_PATTERN_EDIT); prNoteUndoOpen=true;
-                } else {
-                  int newPitch=prSnapScale(mnote);
-                  if (newPitch!=existNote) {
-                    prepareUndo(GUI_UNDO_PATTERN_EDIT);
-                    pat->newData[mrow][DIV_PAT_NOTE]=(short)newPitch;
-                    makeUndo(GUI_UNDO_PATTERN_EDIT); MARK_MODIFIED;
-                  }
-                  int insToUse=(curIns>=0)?curIns:(prevIns>=0?prevIns:-1);
-                  if (prPreviewTimer>0&&prPreviewChan>=0) e->noteOff(prPreviewChan);
-                  e->noteOn(prChan,insToUse>=0?insToUse:0,newPitch-60);
-                  prPreviewTimer=15; prPreviewChan=prChan;
-                  int dur=prInferDuration(existPat,mrow,patLen);
-                  prSelRow0=mrow; prSelRow1=ImMin(mrow+dur-1,patLen-1);
-                  prSelN0=newPitch; prSelN1=newPitch;
-                }
+                int dur=prInferDuration(existPat,mrow,patLen);
+                prSelRow0=mrow; prSelRow1=ImMin(mrow+dur-1,patLen-1);
+                prSelN0=existNote; prSelN1=existNote;
+                prDragMaybe=true;
+                prDragStartR=mrow; prDragStartN=existNote; prDragClickN=prSnapScale(mnote);
+                prDragDeltaR=0; prDragDeltaN=0;
+                prDragMouseStart=mp;
+                int insToUse=(curIns>=0)?curIns:(prevIns>=0?prevIns:-1);
+                if (prPreviewTimer>0&&prPreviewChan>=0) e->noteOff(prPreviewChan);
+                e->noteOn(prChan,insToUse>=0?insToUse:0,existNote-60);
+                prPreviewTimer=15; prPreviewChan=prChan;
+                prepareUndo(GUI_UNDO_PATTERN_EDIT); prNoteUndoOpen=true;
               } else {
 
                 prPainting=true; prErasing=false;
@@ -1606,25 +1633,15 @@ void FurnaceGUI::drawPianoRoll() {
           }
         }
         if (ImGui::IsMouseClicked(ImGuiMouseButton_Right)&&!prPainting&&!prResizing&&!prDragging&&!prDragMaybe) {
-          if (prMode==1) {
-            bool onSelNote=hasSel&&mrow>=selR0&&mrow<=selR1;
-            short noteHere=pat->newData[mrow][DIV_PAT_NOTE];
-            bool onNote=(noteHere>=0&&noteHere<NOTES&&!prIsSpecial(noteHere));
-            if (onSelNote||onNote) ImGui::OpenPopup("##prCtx");
-            else { prErasing=true; prepareUndo(GUI_UNDO_PATTERN_EDIT); }
+          if (ImGui::GetIO().KeyShift) {
+            prErasing=true; prepareUndo(GUI_UNDO_PATTERN_EDIT);
           } else {
             short noteHere=pat->newData[mrow][DIV_PAT_NOTE];
             bool onNote=(noteHere>=0&&noteHere<NOTES&&!prIsSpecial(noteHere));
-            if (onNote) {
-              prepareUndo(GUI_UNDO_PATTERN_EDIT);
-              pat->newData[mrow][DIV_PAT_NOTE]=-1;
-              for (int ei=1;ei<DIV_MAX_COLS;ei++) pat->newData[mrow][ei]=-1;
-              for (int rr=mrow+1;rr<patLen;rr++) {
-                if (pat->newData[rr][DIV_PAT_NOTE]==DIV_NOTE_OFF) { pat->newData[rr][DIV_PAT_NOTE]=-1; break; }
-                if (pat->newData[rr][DIV_PAT_NOTE]!=-1) break;
-              }
-              e->noteOff(prChan);
-              makeUndo(GUI_UNDO_PATTERN_EDIT); MARK_MODIFIED;
+            bool onSelNote=hasSel&&mrow>=selR0&&mrow<=selR1&&onNote&&noteHere>=selN0&&noteHere<=selN1;
+            if (onNote||onSelNote||hasSel) {
+              prCtxRow=mrow; prCtxNote=mnote;
+              ImGui::OpenPopup("##prCtx");
             } else {
               prErasing=true; prepareUndo(GUI_UNDO_PATTERN_EDIT);
             }
@@ -1633,8 +1650,8 @@ void FurnaceGUI::drawPianoRoll() {
 
         if (prDragMaybe&&ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
           float ddx=mp.x-prDragMouseStart.x, ddy=mp.y-prDragMouseStart.y;
-          if (ddx*ddx+ddy*ddy>9.0f*(float)dpiScale*(float)dpiScale) {
-            prDragMaybe=false; prDragging=true;
+          if (ddx*ddx+ddy*ddy>81.0f*(float)dpiScale*(float)dpiScale) {
+            prDragMaybe=false; prDragging=true; prDragHasCopy=false;
             prDragBuf.clear();
             if (hasSel) {
               int chFirst=prChan, chLast=(prPolyEnabled?prChanEnd:prChan);
@@ -1664,14 +1681,6 @@ void FurnaceGUI::drawPianoRoll() {
               prDragBuf.push_back({prDragStartR,prDragStartR+dur,srcCh,(short)prDragStartN,
                 srcPat->newData[prDragStartR][DIV_PAT_INS],srcPat->newData[prDragStartR][DIV_PAT_VOL]});
             }
-            for (auto& dn:prDragBuf) {
-              int cpIdx=e->curSubSong->orders.ord[dn.chan][ord];
-              DivPattern* cp=e->curPat[dn.chan].getPattern(cpIdx,true);
-              if (!cp) continue;
-              cp->newData[dn.row][DIV_PAT_NOTE]=-1;
-              if (dn.endRow<patLen&&cp->newData[dn.endRow][DIV_PAT_NOTE]==DIV_NOTE_OFF)
-                cp->newData[dn.endRow][DIV_PAT_NOTE]=-1;
-            }
           }
         }
 
@@ -1687,8 +1696,19 @@ void FurnaceGUI::drawPianoRoll() {
               e->noteOn(prChan,insToUse>=0?insToUse:0,previewNote-60);
               prPaintHeld=previewNote;
             }
+            float oBase=ox+pianoW+(float)ord*totalW;
+            for (auto& dn:prDragBuf) {
+              int nr=ImClamp(dn.row+prDragDeltaR,0,patLen-1);
+              int nn=prSnapScale(ImClamp((int)dn.note+prDragDeltaN,0,NOTES-1));
+              int nEnd=ImClamp(dn.endRow+prDragDeltaR,0,patLen);
+              float gx0=oBase+nr*rowW+1;
+              float gy0=oy+(NOTES-1-nn)*noteH+1;
+              float gx1=oBase+nEnd*rowW-1;
+              float gy1=gy0+noteH-2;
+              dl->AddRectFilled(ImVec2(gx0,gy0),ImVec2(gx1,gy1),IM_COL32(255,255,255,55));
+              dl->AddRect(ImVec2(gx0,gy0),ImVec2(gx1,gy1),IM_COL32(255,255,255,160),0.0f,0,1.5f);
+            }
           }
-          MARK_MODIFIED;
         }
 
         if (prPainting&&ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
@@ -1745,27 +1765,25 @@ void FurnaceGUI::drawPianoRoll() {
         }
 
         if (prResizing&&ImGui::IsMouseDown(ImGuiMouseButton_Left)&&prResizeRow>=0) {
-          if (mrow>=prResizeRow) {
-            int oldEnd=prResizeRow+1;
-            for (int rr=prResizeRow+1;rr<patLen;rr++) {
-              short sv=pat->newData[rr][DIV_PAT_NOTE];
-              if (sv==DIV_NOTE_OFF) { oldEnd=rr; break; }
-              if (sv!=-1) { oldEnd=rr; break; }
-              oldEnd=rr+1;
-            }
-            int newEnd=mrow+1;
-            int clearTo=ImMax(oldEnd,newEnd);
-            for (int rr=prResizeRow+1;rr<=clearTo&&rr<patLen;rr++) {
-              short sv=pat->newData[rr][DIV_PAT_NOTE];
-              if (sv==-1||sv==DIV_NOTE_OFF) pat->newData[rr][DIV_PAT_NOTE]=-1;
-              else if (rr>newEnd) break;
-            }
-            if (newEnd<patLen) {
-              short sv=pat->newData[newEnd][DIV_PAT_NOTE];
-              if (sv==-1||sv==DIV_NOTE_OFF) pat->newData[newEnd][DIV_PAT_NOTE]=DIV_NOTE_OFF;
-            }
-            prPaintLen=newEnd-prResizeRow;
+          int oldEnd=prResizeRow+1;
+          for (int rr=prResizeRow+1;rr<patLen;rr++) {
+            short sv=pat->newData[rr][DIV_PAT_NOTE];
+            if (sv==DIV_NOTE_OFF) { oldEnd=rr; break; }
+            if (sv!=-1) { oldEnd=rr; break; }
+            oldEnd=rr+1;
           }
+          int newEnd=ImMax(mrow+1,prResizeRow+1);
+          int clearTo=ImMax(oldEnd,newEnd);
+          for (int rr=prResizeRow+1;rr<=clearTo&&rr<patLen;rr++) {
+            short sv=pat->newData[rr][DIV_PAT_NOTE];
+            if (sv==-1||sv==DIV_NOTE_OFF) pat->newData[rr][DIV_PAT_NOTE]=-1;
+            else if (rr>newEnd) break;
+          }
+          if (newEnd<patLen) {
+            short sv=pat->newData[newEnd][DIV_PAT_NOTE];
+            if (sv==-1||sv==DIV_NOTE_OFF) pat->newData[newEnd][DIV_PAT_NOTE]=DIV_NOTE_OFF;
+          }
+          prPaintLen=newEnd-prResizeRow;
           MARK_MODIFIED;
         }
 
@@ -1793,6 +1811,14 @@ void FurnaceGUI::drawPianoRoll() {
               if (pat->newData[rr][DIV_PAT_NOTE]==DIV_NOTE_OFF) { pat->newData[rr][DIV_PAT_NOTE]=-1; break; }
               if (pat->newData[rr][DIV_PAT_NOTE]!=-1) break;
             }
+            // cap previous note with a note-off at this row
+            bool prevActive=false;
+            for (int rr=mrow-1;rr>=0;rr--) {
+              short pn=pat->newData[rr][DIV_PAT_NOTE];
+              if (pn==DIV_NOTE_OFF||pn==DIV_NOTE_REL) break;
+              if (pn>=0&&pn<NOTES&&!prIsSpecial(pn)) { prevActive=true; break; }
+            }
+            if (prevActive) pat->newData[mrow][DIV_PAT_NOTE]=DIV_NOTE_OFF;
             e->noteOff(prChan);
             MARK_MODIFIED;
           }
@@ -1810,26 +1836,36 @@ void FurnaceGUI::drawPianoRoll() {
         }
         if (prDragging) {
           prDragging=false;
-          for (auto& dn:prDragBuf) {
-            int nr=ImClamp(dn.row+prDragDeltaR,0,patLen-1);
-            int nn=prSnapScale(ImClamp((int)dn.note+prDragDeltaN,0,NOTES-1));
-            int cpIdx=e->curSubSong->orders.ord[dn.chan][ord];
-            DivPattern* cp=e->curPat[dn.chan].getPattern(cpIdx,true);
-            if (!cp) continue;
-            cp->newData[nr][DIV_PAT_NOTE]=(short)nn;
-            cp->newData[nr][DIV_PAT_INS]=dn.ins;
-            cp->newData[nr][DIV_PAT_VOL]=dn.vol;
-            int nEnd=ImClamp(dn.endRow+prDragDeltaR,0,patLen);
-            if (nEnd<patLen&&nEnd>nr) cp->newData[nEnd][DIV_PAT_NOTE]=DIV_NOTE_OFF;
+          if (prDragDeltaR!=0||prDragDeltaN!=0) {
+            for (auto& dn:prDragBuf) {
+              int cpIdx=e->curSubSong->orders.ord[dn.chan][ord];
+              DivPattern* cp=e->curPat[dn.chan].getPattern(cpIdx,true);
+              if (!cp) continue;
+              cp->newData[dn.row][DIV_PAT_NOTE]=-1;
+              if (dn.endRow<patLen&&cp->newData[dn.endRow][DIV_PAT_NOTE]==DIV_NOTE_OFF)
+                cp->newData[dn.endRow][DIV_PAT_NOTE]=-1;
+            }
+            for (auto& dn:prDragBuf) {
+              int nr=ImClamp(dn.row+prDragDeltaR,0,patLen-1);
+              int nn=prSnapScale(ImClamp((int)dn.note+prDragDeltaN,0,NOTES-1));
+              int cpIdx=e->curSubSong->orders.ord[dn.chan][ord];
+              DivPattern* cp=e->curPat[dn.chan].getPattern(cpIdx,true);
+              if (!cp) continue;
+              cp->newData[nr][DIV_PAT_NOTE]=(short)nn;
+              cp->newData[nr][DIV_PAT_INS]=dn.ins;
+              cp->newData[nr][DIV_PAT_VOL]=dn.vol;
+              int nEnd=ImClamp(dn.endRow+prDragDeltaR,0,patLen);
+              if (nEnd<patLen&&nEnd>nr) cp->newData[nEnd][DIV_PAT_NOTE]=DIV_NOTE_OFF;
+            }
+            if (hasSel) {
+              prSelRow0=ImClamp(selR0+prDragDeltaR,0,patLen-1);
+              prSelRow1=ImClamp(selR1+prDragDeltaR,0,patLen-1);
+              prSelN0=ImClamp(selN0+prDragDeltaN,0,NOTES-1);
+              prSelN1=ImClamp(selN1+prDragDeltaN,0,NOTES-1);
+            }
+            MARK_MODIFIED;
           }
-          if (hasSel) {
-            prSelRow0=ImClamp(selR0+prDragDeltaR,0,patLen-1);
-            prSelRow1=ImClamp(selR1+prDragDeltaR,0,patLen-1);
-            prSelN0=ImClamp(selN0+prDragDeltaN,0,NOTES-1);
-            prSelN1=ImClamp(selN1+prDragDeltaN,0,NOTES-1);
-          }
-          prDragBuf.clear(); prDragDeltaR=0; prDragDeltaN=0; prDragClickN=-1;
-          MARK_MODIFIED;
+          prDragBuf.clear(); prDragDeltaR=0; prDragDeltaN=0; prDragClickN=-1; prDragHasCopy=false;
           if (prNoteUndoOpen) { makeUndo(GUI_UNDO_PATTERN_EDIT); prNoteUndoOpen=false; }
         }
         if (prNoteUndoOpen) { makeUndo(GUI_UNDO_PATTERN_EDIT); prNoteUndoOpen=false; }
@@ -1861,11 +1897,8 @@ void FurnaceGUI::drawPianoRoll() {
     }
 
     if (ImGui::BeginPopup("##prCtx")) {
-      ImVec2 mp2=ImGui::GetMousePos();
-      float lx2=mp2.x-wp.x+prSyncScrollX;
-      float ly2=mp2.y-wp.y+scrollY;
-      int mr=ImClamp((int)((lx2-pianoW)/rowW),0,patLen-1);
-      int mn=ImClamp(NOTES-1-(int)(ly2/noteH),0,NOTES-1);
+      int mr=(prCtxRow>=0)?prCtxRow:0;
+      int mn=(prCtxNote>=0)?prCtxNote:60;
       bool onNote=(pat->newData[mr][DIV_PAT_NOTE]>=0&&!prIsSpecial(pat->newData[mr][DIV_PAT_NOTE]));
       ImGui::TextDisabled("Row %d  |  %s",mr,noteNames[mn]);
       ImGui::Separator();
@@ -2159,24 +2192,64 @@ void FurnaceGUI::drawPianoRoll() {
           int nr0=selR0+rDir, nr1=selR1+rDir;
           if (nr0>=0&&nr1<patLen) {
             prepareUndo(GUI_UNDO_PATTERN_EDIT);
+            struct ShiftNote { int r; short note, ins, vol; bool hasOff; };
+            std::vector<ShiftNote> toMove;
             if (rDir<0) {
               for (int r=selR0;r<=selR1;r++) {
                 short nv=pat->newData[r][DIV_PAT_NOTE];
                 if (nv>=selN0&&nv<=selN1&&nv>=0&&nv<NOTES&&!prIsSpecial(nv)) {
-                  pat->newData[r+rDir][DIV_PAT_NOTE]=nv;
-                  pat->newData[r+rDir][DIV_PAT_INS]=pat->newData[r][DIV_PAT_INS];
-                  pat->newData[r+rDir][DIV_PAT_VOL]=pat->newData[r][DIV_PAT_VOL];
-                  pat->newData[r][DIV_PAT_NOTE]=-1;
+                  int dur=prInferDuration(pat,r,patLen);
+                  int offRow=r+dur;
+                  bool hasOff=(offRow<patLen&&pat->newData[offRow][DIV_PAT_NOTE]==DIV_NOTE_OFF);
+                  toMove.push_back({r,nv,pat->newData[r][DIV_PAT_INS],pat->newData[r][DIV_PAT_VOL],hasOff});
+                }
+              }
+              for (auto& sn:toMove) {
+                if (sn.hasOff) {
+                  int oldOff=sn.r+prInferDuration(pat,sn.r,patLen);
+                  if (oldOff<patLen&&pat->newData[oldOff][DIV_PAT_NOTE]==DIV_NOTE_OFF)
+                    pat->newData[oldOff][DIV_PAT_NOTE]=-1;
+                }
+                for (int col=0;col<DIV_MAX_COLS;col++) pat->newData[sn.r][col]=-1;
+              }
+              for (auto& sn:toMove) {
+                int dr=sn.r+rDir;
+                pat->newData[dr][DIV_PAT_NOTE]=sn.note;
+                pat->newData[dr][DIV_PAT_INS]=sn.ins;
+                pat->newData[dr][DIV_PAT_VOL]=sn.vol;
+                if (sn.hasOff) {
+                  int newOff=dr+prInferDuration(pat,dr,patLen);
+                  if (newOff<patLen&&(pat->newData[newOff][DIV_PAT_NOTE]==-1||pat->newData[newOff][DIV_PAT_NOTE]==DIV_NOTE_OFF))
+                    pat->newData[newOff][DIV_PAT_NOTE]=DIV_NOTE_OFF;
                 }
               }
             } else {
               for (int r=selR1;r>=selR0;r--) {
                 short nv=pat->newData[r][DIV_PAT_NOTE];
                 if (nv>=selN0&&nv<=selN1&&nv>=0&&nv<NOTES&&!prIsSpecial(nv)) {
-                  pat->newData[r+rDir][DIV_PAT_NOTE]=nv;
-                  pat->newData[r+rDir][DIV_PAT_INS]=pat->newData[r][DIV_PAT_INS];
-                  pat->newData[r+rDir][DIV_PAT_VOL]=pat->newData[r][DIV_PAT_VOL];
-                  pat->newData[r][DIV_PAT_NOTE]=-1;
+                  int dur=prInferDuration(pat,r,patLen);
+                  int offRow=r+dur;
+                  bool hasOff=(offRow<patLen&&pat->newData[offRow][DIV_PAT_NOTE]==DIV_NOTE_OFF);
+                  toMove.push_back({r,nv,pat->newData[r][DIV_PAT_INS],pat->newData[r][DIV_PAT_VOL],hasOff});
+                }
+              }
+              for (auto& sn:toMove) {
+                if (sn.hasOff) {
+                  int oldOff=sn.r+prInferDuration(pat,sn.r,patLen);
+                  if (oldOff<patLen&&pat->newData[oldOff][DIV_PAT_NOTE]==DIV_NOTE_OFF)
+                    pat->newData[oldOff][DIV_PAT_NOTE]=-1;
+                }
+                for (int col=0;col<DIV_MAX_COLS;col++) pat->newData[sn.r][col]=-1;
+              }
+              for (auto& sn:toMove) {
+                int dr=sn.r+rDir;
+                pat->newData[dr][DIV_PAT_NOTE]=sn.note;
+                pat->newData[dr][DIV_PAT_INS]=sn.ins;
+                pat->newData[dr][DIV_PAT_VOL]=sn.vol;
+                if (sn.hasOff) {
+                  int newOff=dr+prInferDuration(pat,dr,patLen);
+                  if (newOff<patLen&&(pat->newData[newOff][DIV_PAT_NOTE]==-1||pat->newData[newOff][DIV_PAT_NOTE]==DIV_NOTE_OFF))
+                    pat->newData[newOff][DIV_PAT_NOTE]=DIV_NOTE_OFF;
                 }
               }
             }
@@ -2190,8 +2263,22 @@ void FurnaceGUI::drawPianoRoll() {
         prepareUndo(GUI_UNDO_PATTERN_EDIT);
         for (int r=selR0;r<=selR1;r++) {
           short nv=pat->newData[r][DIV_PAT_NOTE];
-          if (nv>=selN0&&nv<=selN1&&nv>=0&&nv<NOTES&&!prIsSpecial(nv))
-            pat->newData[r][DIV_PAT_NOTE]=-1;
+          if (nv>=selN0&&nv<=selN1&&nv>=0&&nv<NOTES&&!prIsSpecial(nv)) {
+            // remove this note and its trailing note-off
+            for (int col=0;col<DIV_MAX_COLS;col++) pat->newData[r][col]=-1;
+            for (int rr=r+1;rr<patLen;rr++) {
+              if (pat->newData[rr][DIV_PAT_NOTE]==DIV_NOTE_OFF) { pat->newData[rr][DIV_PAT_NOTE]=-1; break; }
+              if (pat->newData[rr][DIV_PAT_NOTE]!=-1) break;
+            }
+            // if a previous note was playing into this row, cap it with a note-off here
+            bool prevNoteActive=false;
+            for (int rr=r-1;rr>=0;rr--) {
+              short pn=pat->newData[rr][DIV_PAT_NOTE];
+              if (pn==DIV_NOTE_OFF||pn==DIV_NOTE_REL) break; // already has terminator
+              if (pn>=0&&pn<NOTES&&!prIsSpecial(pn)) { prevNoteActive=true; break; }
+            }
+            if (prevNoteActive) pat->newData[r][DIV_PAT_NOTE]=DIV_NOTE_OFF;
+          }
         }
         makeUndo(GUI_UNDO_PATTERN_EDIT); MARK_MODIFIED;
         prSelRow0=prSelRow1=prSelN0=prSelN1=-1;
@@ -2376,7 +2463,6 @@ void FurnaceGUI::drawPianoRoll() {
     ImDrawList* dl=ImGui::GetWindowDrawList();
     ImVec2 wp2=ImGui::GetWindowPos();
     float ox2=wp2.x-fxSX;
-    float fxBase=ox2+pianoW+(float)ord*totalW;
     float vx0=wp2.x,vx1=wp2.x+ImGui::GetWindowWidth();
     float sbSz=ImGui::GetStyle().ScrollbarSize;
     float lBot=wp2.y+ImGui::GetWindowHeight()-sbSz-2;
@@ -2385,178 +2471,216 @@ void FurnaceGUI::drawPianoRoll() {
     const float fxPad=4.0f*dpiScale;
     float lHpadded=lH+2.0f*fxPad;
     ImVec2 fSz=ImGui::CalcTextSize("FF");
+    const float fxZeroH=ImMax(8.0f*(float)dpiScale,fSz.y*0.5f);
+    float lBarBot=lBot-fxZeroH;
+    float lBarH=lBarBot-lTop;
 
-    dl->AddRectFilled(ImVec2(fxBase,wp2.y),ImVec2(fxBase+totalW,wp2.y+effectLaneH),
-      prColorMulAlpha(uiColors[GUI_COLOR_PIANO_ROLL_BG],0.85f));
-    for (int r=0;r<=patLen;r++) {
-      float cx=fxBase+r*rowW;
-      if (cx<vx0-rowW||cx>vx1+rowW) continue;
-      dl->AddLine(ImVec2(cx,wp2.y),ImVec2(cx,wp2.y+effectLaneH),
-        (r%hiB==0)?cGridHi2:(r%hiA==0)?cGridHi1:cGrid);
-    }
+    for (int vi=0;vi<ordersLen;vi++) {
+      float fxBase=ox2+pianoW+(float)vi*totalW;
+      if (fxBase+totalW<vx0||fxBase>vx1) continue;
+      bool viCur=(vi==ord);
+      float ghostAlpha=viCur?1.0f:0.45f;
 
-    if (!prFxRows) {
-      for (int q=1;q<4;q++) {
-        float qy=(lBot+fxPad)-lHpadded*(q/4.0f);
-        dl->AddLine(ImVec2(fxBase,qy),ImVec2(fxBase+totalW,qy),(q==2)?cGridHi1:cGrid);
-        char qlbl[8];
-        int qv=(int)(laneMax*q/4.0f+0.5f);
-        if (prEffectLane==0) snprintf(qlbl,8,"%d",qv);
-        else snprintf(qlbl,8,"%02X",(unsigned char)qv);
-        dl->AddText(ImVec2(fxBase+2,qy-fSz.y*0.5f),IM_COL32(140,140,140,100),qlbl);
+      int viPatIdx=e->curSubSong->orders.ord[prChan][vi];
+      DivPattern* viPat=e->curPat[prChan].getPattern(viPatIdx,viCur);
+      if (!viPat) continue;
+
+      dl->AddRectFilled(ImVec2(fxBase,wp2.y),ImVec2(fxBase+totalW,wp2.y+effectLaneH),
+        prColorMulAlpha(uiColors[GUI_COLOR_PIANO_ROLL_BG],viCur?0.85f:0.6f));
+      for (int r=0;r<=patLen;r++) {
+        float cx=fxBase+r*rowW;
+        if (cx<vx0-rowW||cx>vx1+rowW) continue;
+        ImU32 gc=(r%hiB==0)?cGridHi2:(r%hiA==0)?cGridHi1:cGrid;
+        if (!viCur) { ImU32 a=(gc>>24)&0xFF; gc=(gc&0x00FFFFFF)|((ImU32)(a*0.4f)<<24); }
+        dl->AddLine(ImVec2(cx,wp2.y),ImVec2(cx,wp2.y+effectLaneH),gc);
       }
-      dl->PushClipRect(ImVec2(fxBase,lTop),ImVec2(fxBase+totalW,lBot+fxPad),true);
-      for (int r=0;r<patLen;r++) {
-        short val=pat->newData[r][laneCol];
-        if (val<0) continue;
-        short cv=(short)ImClamp((int)val,0,laneMax);
-        float bx0=fxBase+r*rowW+1;
-        float bx1=fxBase+(r+1)*rowW-1;
-        if (bx1<vx0||bx0>vx1) continue;
-        float norm=(laneMax>0)?(float)cv/(float)laneMax:0.0f;
-        float bw=bx1-bx0;
+      dl->AddLine(ImVec2(fxBase,wp2.y),ImVec2(fxBase,wp2.y+effectLaneH),IM_COL32(255,255,255,viCur?80:30),2.0f);
 
-        ImU32 laneBarColor=laneBarColorBase;
-        if (isEffNum) {
-          laneBarColor=ImGui::ColorConvertFloat4ToU32(uiColors[fxColors[(unsigned char)cv]]);
-        } else if (!isEffNum&&prEffectLane>0) {
-          short fxCode=pat->newData[r][DIV_PAT_FX(laneEffIdx)];
-          if (fxCode>=0) laneBarColor=ImGui::ColorConvertFloat4ToU32(uiColors[fxColors[(unsigned char)fxCode]]);
+      if (!prFxRows) {
+        // zero-zone and guide lines (only on current order to avoid clutter)
+        if (viCur) {
+          dl->AddLine(ImVec2(fxBase,lBarBot),ImVec2(fxBase+totalW,lBarBot),IM_COL32(255,255,255,30));
+          dl->AddRectFilled(ImVec2(fxBase,lBarBot),ImVec2(fxBase+totalW,lBot),IM_COL32(0,0,0,40));
+          { char qlbl[8];
+            if (prEffectLane==0) snprintf(qlbl,8,"0");
+            else snprintf(qlbl,8,"00");
+            dl->AddText(ImVec2(fxBase+2,lBarBot+1),IM_COL32(140,140,140,80),qlbl); }
+          for (int q=1;q<4;q++) {
+            float qy=lBarBot-lBarH*(q/4.0f);
+            dl->AddLine(ImVec2(fxBase,qy),ImVec2(fxBase+totalW,qy),(q==2)?cGridHi1:cGrid);
+            char qlbl[8];
+            int qv=(int)(laneMax*q/4.0f+0.5f);
+            if (prEffectLane==0) snprintf(qlbl,8,"%d",qv);
+            else snprintf(qlbl,8,"%02X",(unsigned char)qv);
+            dl->AddText(ImVec2(fxBase+2,qy-fSz.y*0.5f),IM_COL32(140,140,140,100),qlbl);
+          }
         }
+        dl->PushClipRect(ImVec2(fxBase,lTop),ImVec2(fxBase+totalW,lBot+fxPad),true);
+        for (int r=0;r<patLen;r++) {
+          short val=viPat->newData[r][laneCol];
+          if (val<0) continue;
+          short cv=(short)ImClamp((int)val,0,laneMax);
+          float bx0=fxBase+r*rowW+1;
+          float bx1=fxBase+(r+1)*rowW-1;
+          if (bx1<vx0||bx0>vx1) continue;
+          float norm=(laneMax>0)?(float)cv/(float)laneMax:0.0f;
+          float bw=bx1-bx0;
 
-        if (isEffNum&&cv==0) {
-          float tickH=ImMax(4.0f*(float)dpiScale,fSz.y*0.5f);
-          dl->AddRectFilled(ImVec2(bx0,(lBot+fxPad)-tickH),ImVec2(bx1,lBot+fxPad),laneBarColor,1.0f);
-          if (bw>=fSz.x+2) {
-            const char* desc=e->getEffectDesc(0,prChan,false);
-            const char* nameStart=desc?desc:"";
-            const char* colon=desc?strchr(desc,':'):NULL;
-            if (colon&&colon[1]==' ') nameStart=colon+2;
-            char sd[32]=""; int ni=0;
-            while(nameStart[ni]&&nameStart[ni]!='('&&ni<30) { sd[ni]=nameStart[ni]; ni++; }
-            while(ni>0&&sd[ni-1]==' ') ni--;
-            sd[ni]=0;
-            dl->AddText(ImVec2(bx0+1,(lBot+fxPad)-fSz.y-1),IM_COL32(255,255,255,180),sd[0]?sd:"00");
+          ImU32 laneBarColor=laneBarColorBase;
+          if (isEffNum) {
+            laneBarColor=ImGui::ColorConvertFloat4ToU32(uiColors[fxColors[(unsigned char)cv]]);
+          } else if (!isEffNum&&prEffectLane>0) {
+            short fxCode=viPat->newData[r][DIV_PAT_FX(laneEffIdx)];
+            if (fxCode>=0) laneBarColor=ImGui::ColorConvertFloat4ToU32(uiColors[fxColors[(unsigned char)fxCode]]);
           }
-        } else {
-          float bh=ImMax(norm*lHpadded,2.0f);
-          float by0=(lBot+fxPad)-bh;
-          dl->AddRectFilled(ImVec2(bx0,by0),ImVec2(bx1,lBot+fxPad),laneBarColor,1.5f);
-          dl->AddRect(ImVec2(bx0,by0),ImVec2(bx1,lBot+fxPad),IM_COL32(255,255,255,25),1.5f);
-          if (bw>=fSz.x+2&&bh>=fSz.y) {
-            char vs[8];
-            if (prEffectLane==0) snprintf(vs,8,"%d",(int)cv);
-            else snprintf(vs,8,"%02X",(unsigned char)cv);
-            dl->AddText(ImVec2(bx0+1,by0+1),IM_COL32(255,255,255,200),vs);
+          // dim color for non-current orders
+          if (!viCur) {
+            ImVec4 cv4=ImGui::ColorConvertU32ToFloat4(laneBarColor);
+            cv4.w*=ghostAlpha;
+            laneBarColor=ImGui::ColorConvertFloat4ToU32(cv4);
           }
-          if (isEffNum&&bw>=fSz.x+2) {
-            const char* desc=e->getEffectDesc((unsigned char)cv,prChan,false);
-            if (desc&&desc[0]) {
-              const char* nameStart=desc;
-              const char* colon=strchr(desc,':');
-              if (colon&&colon[1]==' ') nameStart=colon+2;
-              char sd[32]=""; int ni=0;
-              while(nameStart[ni]&&nameStart[ni]!='('&&ni<30) { sd[ni]=nameStart[ni]; ni++; }
-              while(ni>0&&sd[ni-1]==' ') ni--;
-              sd[ni]=0;
-              if (ni>0) dl->AddText(ImVec2(bx0+1,(lBot+fxPad)-fSz.y-1),IM_COL32(255,255,255,180),sd);
+
+          if (cv==0) {
+            dl->AddRectFilled(ImVec2(bx0,lBarBot),ImVec2(bx1,lBot),laneBarColor,1.0f);
+            if (viCur&&bw>=fSz.x+2) {
+              if (isEffNum) {
+                const char* desc=e->getEffectDesc(0,prChan,false);
+                const char* nameStart=desc?desc:"";
+                const char* colon=desc?strchr(desc,':'):NULL;
+                if (colon&&colon[1]==' ') nameStart=colon+2;
+                char sd[32]=""; int ni=0;
+                while(nameStart[ni]&&nameStart[ni]!='('&&ni<30) { sd[ni]=nameStart[ni]; ni++; }
+                while(ni>0&&sd[ni-1]==' ') ni--;
+                sd[ni]=0;
+                dl->AddText(ImVec2(bx0+1,lBarBot+1),IM_COL32(255,255,255,180),sd[0]?sd:"00");
+              } else {
+                dl->AddText(ImVec2(bx0+1,lBarBot+1),IM_COL32(255,255,255,180),"00");
+              }
+            }
+          } else {
+            float bh=norm*lBarH;
+            float by0=lBarBot-bh;
+            dl->AddRectFilled(ImVec2(bx0,by0),ImVec2(bx1,lBarBot),laneBarColor,1.5f);
+            dl->AddRect(ImVec2(bx0,by0),ImVec2(bx1,lBarBot),IM_COL32(255,255,255,viCur?25:10),1.5f);
+            if (viCur&&bw>=fSz.x+2&&bh>=fSz.y) {
+              char vs[8];
+              if (prEffectLane==0) snprintf(vs,8,"%d",(int)cv);
+              else snprintf(vs,8,"%02X",(unsigned char)cv);
+              dl->AddText(ImVec2(bx0+1,by0+1),IM_COL32(255,255,255,200),vs);
+            }
+            if (viCur&&isEffNum&&bw>=fSz.x+2) {
+              const char* desc=e->getEffectDesc((unsigned char)cv,prChan,false);
+              if (desc&&desc[0]) {
+                const char* nameStart=desc;
+                const char* colon=strchr(desc,':');
+                if (colon&&colon[1]==' ') nameStart=colon+2;
+                char sd[32]=""; int ni=0;
+                while(nameStart[ni]&&nameStart[ni]!='('&&ni<30) { sd[ni]=nameStart[ni]; ni++; }
+                while(ni>0&&sd[ni-1]==' ') ni--;
+                sd[ni]=0;
+                if (ni>0) dl->AddText(ImVec2(bx0+1,lBarBot-fSz.y-1),IM_COL32(255,255,255,180),sd);
+              }
             }
           }
         }
-      }
-      dl->PopClipRect();
+        dl->PopClipRect();
 
-      if (prFxViewAll) {
-        dl->PushClipRect(ImVec2(fxBase,lTop),ImVec2(fxBase+totalW,lBot+fxPad),true);
+        if (viCur&&prFxViewAll) {
+          dl->PushClipRect(ImVec2(fxBase,lTop),ImVec2(fxBase+totalW,lBot+fxPad),true);
+          for (int li=0;li<maxLane;li++) {
+            if (li==prEffectLane) continue;
+            bool liIsEffNum=(li>0&&(li&1)==1);
+            int liEffIdx=0;
+            int liCol=DIV_PAT_VOL, liMax=volMax;
+            if (li==0) { liCol=DIV_PAT_VOL; liMax=volMax; }
+            else if (liIsEffNum) { liEffIdx=(li-1)/2; liCol=DIV_PAT_FX(liEffIdx); liMax=0xff; }
+            else { liEffIdx=(li-2)/2; liCol=DIV_PAT_FXVAL(liEffIdx); liMax=0xff; }
+            ImU32 ghostBase=(li==0)
+              ?ImGui::ColorConvertFloat4ToU32(uiColors[GUI_COLOR_PIANO_ROLL_FX_VOL])
+              :(liIsEffNum
+                ?ImGui::ColorConvertFloat4ToU32(uiColors[GUI_COLOR_PIANO_ROLL_FX_NUM])
+                :ImGui::ColorConvertFloat4ToU32(uiColors[GUI_COLOR_PIANO_ROLL_FX_VAL]));
+            for (int r=0;r<patLen;r++) {
+              short val=viPat->newData[r][liCol];
+              if (val<0) continue;
+              float bx0=fxBase+r*rowW+1;
+              float bx1=fxBase+(r+1)*rowW-1;
+              if (bx1<vx0||bx0>vx1) continue;
+              short cv=(short)ImClamp((int)val,0,liMax);
+              float norm=(liMax>0)?(float)cv/(float)liMax:0.0f;
+              float bh=ImMax(norm*lHpadded,2.0f);
+              float by0=(lBot+fxPad)-bh;
+              ImU32 gc=ghostBase;
+              if (liIsEffNum) gc=ImGui::ColorConvertFloat4ToU32(uiColors[fxColors[(unsigned char)cv]]);
+              else if (!liIsEffNum&&li>0) {
+                short fxCode=viPat->newData[r][DIV_PAT_FX(liEffIdx)];
+                if (fxCode>=0) gc=ImGui::ColorConvertFloat4ToU32(uiColors[fxColors[(unsigned char)fxCode]]);
+              }
+              ImVec4 gcv=ImGui::ColorConvertU32ToFloat4(gc); gcv.w*=0.35f;
+              dl->AddRectFilled(ImVec2(bx0,by0),ImVec2(bx1,lBot+fxPad),ImGui::ColorConvertFloat4ToU32(gcv));
+            }
+          }
+          dl->PopClipRect();
+        }
+      } else {
+        float rowsTop=wp2.y-ImGui::GetScrollY();
+        float rH=fxRowsPerLane;
         for (int li=0;li<maxLane;li++) {
-          if (li==prEffectLane) continue;
           bool liIsEffNum=(li>0&&(li&1)==1);
           int liEffIdx=0;
           int liCol=DIV_PAT_VOL, liMax=volMax;
           if (li==0) { liCol=DIV_PAT_VOL; liMax=volMax; }
           else if (liIsEffNum) { liEffIdx=(li-1)/2; liCol=DIV_PAT_FX(liEffIdx); liMax=0xff; }
           else { liEffIdx=(li-2)/2; liCol=DIV_PAT_FXVAL(liEffIdx); liMax=0xff; }
-          ImU32 ghostBase=(li==0)
+
+          float ry0=rowsTop+li*rH;
+          float ry1=ry0+rH;
+          bool isActive=(li==prEffectLane);
+
+          if (viCur&&isActive)
+            dl->AddRectFilled(ImVec2(fxBase,ry0),ImVec2(fxBase+totalW,ry1),IM_COL32(255,255,255,18));
+          dl->AddLine(ImVec2(fxBase,ry1),ImVec2(fxBase+totalW,ry1),cGrid);
+
+          ImU32 rowBarColor=(li==0)
             ?ImGui::ColorConvertFloat4ToU32(uiColors[GUI_COLOR_PIANO_ROLL_FX_VOL])
             :(liIsEffNum
               ?ImGui::ColorConvertFloat4ToU32(uiColors[GUI_COLOR_PIANO_ROLL_FX_NUM])
               :ImGui::ColorConvertFloat4ToU32(uiColors[GUI_COLOR_PIANO_ROLL_FX_VAL]));
+
+          dl->PushClipRect(ImVec2(fxBase,ry0),ImVec2(fxBase+totalW,ry1),true);
           for (int r=0;r<patLen;r++) {
-            short val=pat->newData[r][liCol];
+            short val=viPat->newData[r][liCol];
             if (val<0) continue;
             float bx0=fxBase+r*rowW+1;
             float bx1=fxBase+(r+1)*rowW-1;
             if (bx1<vx0||bx0>vx1) continue;
             short cv=(short)ImClamp((int)val,0,liMax);
             float norm=(liMax>0)?(float)cv/(float)liMax:0.0f;
-            float bh=ImMax(norm*lHpadded,2.0f);
-            float by0=(lBot+fxPad)-bh;
-            ImU32 gc=ghostBase;
-            if (liIsEffNum) gc=ImGui::ColorConvertFloat4ToU32(uiColors[fxColors[(unsigned char)cv]]);
+            float fillW=ImMax(norm*(bx1-bx0),2.0f);
+            ImU32 bc=rowBarColor;
+            if (liIsEffNum) bc=ImGui::ColorConvertFloat4ToU32(uiColors[fxColors[(unsigned char)cv]]);
             else if (!liIsEffNum&&li>0) {
-              short fxCode=pat->newData[r][DIV_PAT_FX(liEffIdx)];
-              if (fxCode>=0) gc=ImGui::ColorConvertFloat4ToU32(uiColors[fxColors[(unsigned char)fxCode]]);
+              short fxCode=viPat->newData[r][DIV_PAT_FX(liEffIdx)];
+              if (fxCode>=0) bc=ImGui::ColorConvertFloat4ToU32(uiColors[fxColors[(unsigned char)fxCode]]);
             }
-            ImVec4 gcv=ImGui::ColorConvertU32ToFloat4(gc); gcv.w*=0.35f;
-            dl->AddRectFilled(ImVec2(bx0,by0),ImVec2(bx1,lBot+fxPad),ImGui::ColorConvertFloat4ToU32(gcv));
+            if (!viCur) {
+              ImVec4 bc4=ImGui::ColorConvertU32ToFloat4(bc); bc4.w*=ghostAlpha;
+              bc=ImGui::ColorConvertFloat4ToU32(bc4);
+            }
+            float insetY=ry0+1;
+            float insetY1=ry1-1;
+            dl->AddRectFilled(ImVec2(bx0,insetY),ImVec2(bx0+fillW,insetY1),bc);
+            if (viCur&&rH>=fSz.y+2) {
+              char vs[8];
+              if (li==0) snprintf(vs,8,"%d",(int)cv);
+              else snprintf(vs,8,"%02X",(unsigned char)cv);
+              dl->AddText(ImVec2(bx0+2,insetY+1),IM_COL32(255,255,255,200),vs);
+            }
           }
+          dl->PopClipRect();
         }
-        dl->PopClipRect();
       }
-    } else {
-      float rowsTop=wp2.y-ImGui::GetScrollY();
-      float rH=fxRowsPerLane;
-      for (int li=0;li<maxLane;li++) {
-        bool liIsEffNum=(li>0&&(li&1)==1);
-        int liEffIdx=0;
-        int liCol=DIV_PAT_VOL, liMax=volMax;
-        if (li==0) { liCol=DIV_PAT_VOL; liMax=volMax; }
-        else if (liIsEffNum) { liEffIdx=(li-1)/2; liCol=DIV_PAT_FX(liEffIdx); liMax=0xff; }
-        else { liEffIdx=(li-2)/2; liCol=DIV_PAT_FXVAL(liEffIdx); liMax=0xff; }
-
-        float ry0=rowsTop+li*rH;
-        float ry1=ry0+rH;
-        bool isActive=(li==prEffectLane);
-
-        if (isActive)
-          dl->AddRectFilled(ImVec2(fxBase,ry0),ImVec2(fxBase+totalW,ry1),IM_COL32(255,255,255,18));
-        dl->AddLine(ImVec2(fxBase,ry1),ImVec2(fxBase+totalW,ry1),cGrid);
-
-        ImU32 rowBarColor=(li==0)
-          ?ImGui::ColorConvertFloat4ToU32(uiColors[GUI_COLOR_PIANO_ROLL_FX_VOL])
-          :(liIsEffNum
-            ?ImGui::ColorConvertFloat4ToU32(uiColors[GUI_COLOR_PIANO_ROLL_FX_NUM])
-            :ImGui::ColorConvertFloat4ToU32(uiColors[GUI_COLOR_PIANO_ROLL_FX_VAL]));
-
-        dl->PushClipRect(ImVec2(fxBase,ry0),ImVec2(fxBase+totalW,ry1),true);
-        for (int r=0;r<patLen;r++) {
-          short val=pat->newData[r][liCol];
-          if (val<0) continue;
-          float bx0=fxBase+r*rowW+1;
-          float bx1=fxBase+(r+1)*rowW-1;
-          if (bx1<vx0||bx0>vx1) continue;
-          short cv=(short)ImClamp((int)val,0,liMax);
-          float norm=(liMax>0)?(float)cv/(float)liMax:0.0f;
-          float fillW=ImMax(norm*(bx1-bx0),2.0f);
-          ImU32 bc=rowBarColor;
-          if (liIsEffNum) bc=ImGui::ColorConvertFloat4ToU32(uiColors[fxColors[(unsigned char)cv]]);
-          else if (!liIsEffNum&&li>0) {
-            short fxCode=pat->newData[r][DIV_PAT_FX(liEffIdx)];
-            if (fxCode>=0) bc=ImGui::ColorConvertFloat4ToU32(uiColors[fxColors[(unsigned char)fxCode]]);
-          }
-          float insetY=ry0+1;
-          float insetY1=ry1-1;
-          dl->AddRectFilled(ImVec2(bx0,insetY),ImVec2(bx0+fillW,insetY1),bc);
-          if (rH>=fSz.y+2) {
-            char vs[8];
-            if (li==0) snprintf(vs,8,"%d",(int)cv);
-            else snprintf(vs,8,"%02X",(unsigned char)cv);
-            dl->AddText(ImVec2(bx0+2,insetY+1),IM_COL32(255,255,255,200),vs);
-          }
-        }
-        dl->PopClipRect();
-      }
-    }
+    } // end for vi
 
     if (e->isPlaying()&&playOrder==ord) {
       float phx=ox2+pianoW+(float)playOrder*totalW+oldRow*rowW;
@@ -2595,6 +2719,7 @@ void FurnaceGUI::drawPianoRoll() {
     dl->PopClipRect();
     dl->AddLine(ImVec2(wp2.x+pianoW,wp2.y),ImVec2(wp2.x+pianoW,wp2.y+effectLaneH),cKeyBrd,1.5f);
 
+    float fxBase=ox2+pianoW+(float)ord*totalW; // current-order base for interaction/overlays
     if (!prFxRows&&prFxSlopeActive&&prFxSlopeR0>=0&&prFxSlopeR1>=0) {
       int sr0=ImMin(prFxSlopeR0,prFxSlopeR1), sr1=ImMax(prFxSlopeR0,prFxSlopeR1);
       int sv0=(prFxSlopeR0<=prFxSlopeR1)?prFxSlopeV0:prFxSlopeV1;
@@ -2643,7 +2768,8 @@ void FurnaceGUI::drawPianoRoll() {
     if (prFxRows) {
       fxNorm=ImClamp((fxMp.x-fxCellLeft)/fxCellWidth,0.0f,1.0f);
     } else {
-      fxNorm=ImClamp(1.0f-(fxLy-lTop-fxPad)/lHpadded,0.0f,1.0f);
+      // mouse at or below lBarBot maps to 0; above maps linearly to 1
+      fxNorm=ImClamp(1.0f-(fxLy-lTop)/lBarH,0.0f,1.0f);
     }
     int fxPv=(int)(fxNorm*(float)laneMax+0.5f);
 
@@ -2657,7 +2783,7 @@ void FurnaceGUI::drawPianoRoll() {
           float pvx=fxCellLeft+fxNorm*fxCellWidth;
           dl->AddLine(ImVec2(pvx,ry0),ImVec2(pvx,ry1),IM_COL32(255,255,100,160),1.5f);
         } else {
-          float pvy=(lBot+fxPad)-((float)fxPv/ImMax(laneMax,1))*lHpadded;
+          float pvy=(fxPv==0)?lBarBot:(lBarBot-((float)fxPv/ImMax(laneMax,1))*lBarH);
           dl->AddLine(ImVec2(fxBase,pvy),ImVec2(fxBase+totalW,pvy),IM_COL32(255,255,100,110),1.0f);
         }
         char tip[160];
@@ -2695,8 +2821,27 @@ void FurnaceGUI::drawPianoRoll() {
       if (!prFxSlopeActive) {
         bool fxErase=ImGui::GetIO().KeyShift&&ImGui::IsMouseDown(ImGuiMouseButton_Left);
         if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-          prepareUndo(GUI_UNDO_PATTERN_EDIT); prFxUndoOpen=true;
-          prFxLastDragRow=fxRow;
+          if (isEffNum&&!fxErase) {
+            // open effect picker popup instead of raw drag
+            prFxPickerRow=fxRow;
+            prFxPickerEffIdx=laneEffIdx;
+            prFxPickerSearch[0]='\0';
+            prFxPickerList.clear();
+            for (int ci=0;ci<256;ci++) {
+              const char* d=e->getEffectDesc((unsigned char)ci,prChan,false);
+              if (d&&d[0]) {
+                PrFxEntry ent;
+                ent.code=(unsigned char)ci;
+                snprintf(ent.label,sizeof(ent.label),"%02X  %s",(unsigned char)ci,d);
+                prFxPickerList.push_back(ent);
+              }
+            }
+            prFxPickerOpen=true;
+            ImGui::OpenPopup("##prFxPicker");
+          } else {
+            prepareUndo(GUI_UNDO_PATTERN_EDIT); prFxUndoOpen=true;
+            prFxLastDragRow=fxRow;
+          }
         }
         if (ImGui::IsMouseDown(ImGuiMouseButton_Left)&&prFxUndoOpen) {
           int r0=(prFxLastDragRow>=0)?ImMin(prFxLastDragRow,fxRow):fxRow;
@@ -2770,6 +2915,42 @@ void FurnaceGUI::drawPianoRoll() {
   }
   ImGui::EndChild();
   ImGui::PopStyleVar();
+
+  if (prFxPickerOpen) {
+    ImGui::SetNextWindowSize(ImVec2(300.0f*(float)dpiScale,320.0f*(float)dpiScale),ImGuiCond_Always);
+    if (ImGui::BeginPopup("##prFxPicker",ImGuiWindowFlags_NoMove)) {
+      ImGui::TextDisabled("Select effect (row %d)",prFxPickerRow);
+      ImGui::Separator();
+      ImGui::SetNextItemWidth(-1);
+      bool searchChanged=ImGui::InputTextWithHint("##fxSearch","Search...",prFxPickerSearch,sizeof(prFxPickerSearch));
+      (void)searchChanged;
+      ImGui::BeginChild("##fxList",ImVec2(0,0),false);
+      for (auto& ent: prFxPickerList) {
+        if (prFxPickerSearch[0]) {
+          // simple case-insensitive substring filter
+          char haystack[64]; char needle[128];
+          int hi=0; const char* src=ent.label;
+          while (*src&&hi<63) { char c=*src++; haystack[hi++]=(c>='A'&&c<='Z')?(c+32):c; }
+          haystack[hi]='\0';
+          int ni=0; const char* ns=prFxPickerSearch;
+          while (*ns&&ni<127) { char c=*ns++; needle[ni++]=(c>='A'&&c<='Z')?(c+32):c; }
+          needle[ni]='\0';
+          if (!strstr(haystack,needle)) continue;
+        }
+        if (ImGui::Selectable(ent.label,false)) {
+          prepareUndo(GUI_UNDO_PATTERN_EDIT);
+          pat->newData[prFxPickerRow][DIV_PAT_FX(prFxPickerEffIdx)]=(short)ent.code;
+          makeUndo(GUI_UNDO_PATTERN_EDIT); MARK_MODIFIED;
+          prFxPickerOpen=false;
+          ImGui::CloseCurrentPopup();
+        }
+      }
+      ImGui::EndChild();
+      ImGui::EndPopup();
+    } else {
+      prFxPickerOpen=false;
+    }
+  }
 
   ImGui::End();
 }
