@@ -1,5 +1,7 @@
 .vscode/
 build/
+build-test/
+squashfs-root/
 clangbuild/
 oldwinbuild/
 nosdl/

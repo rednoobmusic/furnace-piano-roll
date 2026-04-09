@@ -77,6 +77,7 @@ static int prFollowPrevPlayOrd=-1;
 static int prSnapTargetOrd=-1;
 static float prPrevZoom=1.0f;
 static bool  prKbdShowConfig=false;
+static bool  prFxHelpOpen=false;
 static bool  prColorByIns=false;
 static bool  prNoteTooltip=false;
 static int   prLoopR0=-1, prLoopR1=-1;
@@ -561,38 +562,6 @@ void FurnaceGUI::drawPianoRoll() {
   ImGui::SameLine(0,6.0f*(float)dpiScale);
   ImGui::TextDisabled("N:%d",prPaintLen);
   if (ImGui::IsItemHovered()) ImGui::SetTooltip("Current note paint length: %d row(s)\nClick an existing note to pick up its length",prPaintLen);
-  ImGui::SameLine(0,6.0f*(float)dpiScale);
-  if (ImGui::SmallButton("\xe2\x9a\x99##prKbdCfg")) prKbdShowConfig=!prKbdShowConfig;
-  if (ImGui::IsItemHovered()) ImGui::SetTooltip("Piano roll key bindings");
-  if (prKbdShowConfig) {
-    ImGui::SetNextWindowSize(ImVec2(260.0f*(float)dpiScale,0),ImGuiCond_Appearing);
-    if (ImGui::Begin("Piano Roll Keys##prKbdWin",&prKbdShowConfig,ImGuiWindowFlags_NoScrollbar)) {
-      ImGui::TextDisabled("Mode keys");
-      ImGui::BulletText("D — Draw mode  (click note = select/drag)");
-      ImGui::BulletText("S — Select mode");
-      ImGui::BulletText("P — Paint mode  (drag = paint continuously)");
-      ImGui::Separator();
-      ImGui::TextDisabled("Navigation");
-      ImGui::BulletText("Ctrl+scroll — zoom in/out");
-      ImGui::BulletText("Shift+scroll — scroll horizontally");
-      ImGui::BulletText("Middle-drag — pan");
-      ImGui::Separator();
-      ImGui::TextDisabled("Selection");
-      ImGui::BulletText("Shift+drag — box select (any mode)");
-      ImGui::BulletText("Shift+\xe2\x86\x91\xe2\x86\x93 — transpose \xc2\xb1" "1 semitone");
-      ImGui::BulletText("Ctrl+Shift+\xe2\x86\x91\xe2\x86\x93 — transpose \xc2\xb1 octave");
-      ImGui::BulletText("Shift+\xe2\x86\x90\xe2\x86\x92 — move selection \xc2\xb1" "1 row");
-      ImGui::BulletText("Ctrl+A — select all");
-      ImGui::BulletText("Ctrl+C / Ctrl+X / Ctrl+V — copy / cut / paste");
-      ImGui::BulletText("Delete — erase selection (clears all row data)");
-      ImGui::Separator();
-      ImGui::TextDisabled("Editing");
-      ImGui::BulletText("Right-click — context menu (any mode)");
-      ImGui::BulletText("Right-click drag on empty — erase strip");
-      ImGui::BulletText("Drag note right edge — resize (left = shrink)");
-    }
-    ImGui::End();
-  }
   ImGui::SameLine();
   ImGui::Separator();
   ImGui::SameLine();
@@ -640,6 +609,43 @@ void FurnaceGUI::drawPianoRoll() {
     ImGui::Checkbox("FX Rows##pvFXR",&prFxRows);
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("Show each FX lane as a separate editable row (replaces bar chart)");
     ImGui::EndPopup();
+  }
+  {
+    float btnW=ImGui::CalcTextSize("?").x+ImGui::GetStyle().FramePadding.x*2;
+    ImGui::SameLine(ImGui::GetWindowWidth()-btnW-ImGui::GetStyle().WindowPadding.x);
+    if (ImGui::SmallButton("?##prKbdCfg")) prKbdShowConfig=!prKbdShowConfig;
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Piano roll key bindings");
+    if (prKbdShowConfig) {
+      ImVec2 winPos=ImGui::GetWindowPos();
+      ImGui::SetNextWindowPos(ImVec2(winPos.x+ImGui::GetWindowWidth(),ImGui::GetItemRectMax().y),ImGuiCond_Appearing,ImVec2(1.0f,0.0f));
+      ImGui::SetNextWindowSize(ImVec2(260.0f*(float)dpiScale,0),ImGuiCond_Appearing);
+      if (ImGui::Begin("Piano Roll Keys##prKbdWin",&prKbdShowConfig,ImGuiWindowFlags_NoScrollbar)) {
+        ImGui::TextDisabled("Mode keys");
+        ImGui::BulletText("D — Draw mode  (click note = select/drag)");
+        ImGui::BulletText("S — Select mode");
+        ImGui::BulletText("P — Paint mode  (drag = paint continuously)");
+        ImGui::Separator();
+        ImGui::TextDisabled("Navigation");
+        ImGui::BulletText("Ctrl+scroll — zoom in/out");
+        ImGui::BulletText("Shift+scroll — scroll horizontally");
+        ImGui::BulletText("Middle-drag — pan");
+        ImGui::Separator();
+        ImGui::TextDisabled("Selection");
+        ImGui::BulletText("Shift+drag — box select (any mode)");
+        ImGui::BulletText("Shift+\xe2\x86\x91\xe2\x86\x93 — transpose \xc2\xb1" "1 semitone");
+        ImGui::BulletText("Ctrl+Shift+\xe2\x86\x91\xe2\x86\x93 — transpose \xc2\xb1 octave");
+        ImGui::BulletText("Shift+\xe2\x86\x90\xe2\x86\x92 — move selection \xc2\xb1" "1 row");
+        ImGui::BulletText("Ctrl+A — select all");
+        ImGui::BulletText("Ctrl+C / Ctrl+X / Ctrl+V — copy / cut / paste");
+        ImGui::BulletText("Delete — erase selection (clears all row data)");
+        ImGui::Separator();
+        ImGui::TextDisabled("Editing");
+        ImGui::BulletText("Right-click — context menu (any mode)");
+        ImGui::BulletText("Right-click drag on empty — erase strip");
+        ImGui::BulletText("Drag note right edge — resize (left = shrink)");
+      }
+      ImGui::End();
+    }
   }
 
   float availH=ImGui::GetContentRegionAvail().y;
@@ -1031,7 +1037,8 @@ void FurnaceGUI::drawPianoRoll() {
             dl->AddRectFilled(ImVec2(rx0+1,oy),ImVec2(ImMin(rx0+rowW*0.35f,rx1),oy+totalH),mcFill);
             dl->AddLine(ImVec2(rx0,oy),ImVec2(rx0,oy+totalH),mc,2.0f);
             const char* lbl=(nv==DIV_NOTE_OFF)?"OFF":(nv==DIV_NOTE_REL)?"===":"REL";
-            if (noteH>fsz.y*0.8f) dl->AddText(ImVec2(rx0+2,oy+2),mc,lbl);
+            float lblY=ImMax(oy+2,vy0+2);
+            dl->AddText(ImVec2(rx0+2,lblY),mc,lbl);
           }
           continue;
         }
@@ -1518,17 +1525,15 @@ void FurnaceGUI::drawPianoRoll() {
           float ny0=oy+(NOTES-1-hNv)*noteH+1;
           float ny1=ny0+noteH-2;
           if (mp.x>=nx0&&mp.x<=nx1&&mp.y>=ny0&&mp.y<=ny1) {
+            String insStr="";
             if (hIns>=0&&hIns<(int)e->song.ins.size()) {
-              if (hVol>=0)
-                ImGui::SetTooltip("%s  len:%d  ins:%d %s  vol:%d",noteNames[hNv],hDur,hIns,e->song.ins[hIns]->name.c_str(),(int)hVol);
-              else
-                ImGui::SetTooltip("%s  len:%d  ins:%d %s",noteNames[hNv],hDur,hIns,e->song.ins[hIns]->name.c_str());
-            } else {
-              if (hVol>=0)
-                ImGui::SetTooltip("%s  len:%d  vol:%d",noteNames[hNv],hDur,(int)hVol);
-              else
-                ImGui::SetTooltip("%s  len:%d",noteNames[hNv],hDur);
+              insStr=fmt::sprintf("  ins:%.2X: %s",hIns,e->song.ins[hIns]->name.c_str());
+            } else if (hIns>=0) {
+              insStr=fmt::sprintf("  ins:%.2X",hIns);
             }
+            String volStr="";
+            if (hVol>=0) volStr=fmt::sprintf("  vol:%d",hVol);
+            ImGui::SetTooltip("%s  len:%d%s%s",noteNames[hNv],hDur,insStr.c_str(),volStr.c_str());
           }
         }
       }
@@ -1572,30 +1577,42 @@ void FurnaceGUI::drawPianoRoll() {
             prSelRow0=mrow; prSelRow1=mrow;
           } else if (prMode==1) {
             short existNote=pat->newData[mrow][DIV_PAT_NOTE];
-            bool onNote=(existNote>=0&&existNote<NOTES&&!prIsSpecial(existNote));
-            bool onSel=hasSel&&mrow>=selR0&&mrow<=selR1&&onNote&&existNote>=selN0&&existNote<=selN1;
-            if (onSel) {
-
+            int existNoteRow1=mrow;
+            if (!(existNote>=0&&existNote<NOTES&&!prIsSpecial(existNote))) {
+              for (int rr=mrow-1;rr>=0&&rr>=mrow-512;rr--) {
+                short sv=pat->newData[rr][DIV_PAT_NOTE];
+                if (sv==-1) continue;
+                if (sv>=0&&sv<NOTES&&!prIsSpecial(sv)) {
+                  int dur=prInferDuration(pat,rr,patLen);
+                  if (mrow<rr+dur) { existNote=sv; existNoteRow1=rr; }
+                }
+                break;
+              }
+            }
+            bool onNote=(existNote>=0&&existNote<NOTES&&!prIsSpecial(existNote)&&mnote==existNote);
+            bool alreadySel=hasSel&&existNoteRow1==selR0&&existNote==selN0&&selN0==selN1;
+            if (onNote&&alreadySel) {
               prDragMaybe=true;
-              prDragStartR=mrow; prDragStartN=existNote;
+              prDragStartR=existNoteRow1; prDragStartN=existNote;
               prDragDeltaR=0; prDragDeltaN=0;
               prDragMouseStart=mp;
               prepareUndo(GUI_UNDO_PATTERN_EDIT); prNoteUndoOpen=true;
             } else if (onNote) {
-
-              int dur=prInferDuration(pat,mrow,patLen);
-              prSelRow0=mrow; prSelRow1=ImMin(mrow+dur-1,patLen-1);
+              int dur=prInferDuration(pat,existNoteRow1,patLen);
+              prSelRow0=existNoteRow1; prSelRow1=ImMin(existNoteRow1+dur-1,patLen-1);
               prSelN0=existNote; prSelN1=existNote;
+              prSelR0=existNoteRow1; prSelR1=prSelRow1;
               prLastNote=existNote;
             } else {
               prSelecting=true;
               prDragSelStartR=mrow; prDragSelStartN=prSnapScale(mnote);
               prSelR0=prSelR1=mrow; prSelN0=prSelN1=prDragSelStartN;
-              prSelRow0=mrow; prSelRow1=mrow;
+              prSelRow0=-1; prSelRow1=-1;
             }
           } else {
             short existNote=pat->newData[mrow][DIV_PAT_NOTE];
             DivPattern* existPat=pat;
+            int existNoteRow=mrow;
             if (prPolyEnabled&&prChanEnd>prChan&&!(existNote>=0&&existNote<NOTES&&!prIsSpecial(existNote))) {
               for (int tc=prChan+1;tc<=prChanEnd;tc++) {
                 int tpIdx=e->curSubSong->orders.ord[tc][ord];
@@ -1604,6 +1621,17 @@ void FurnaceGUI::drawPianoRoll() {
                   short tn=tp->newData[mrow][DIV_PAT_NOTE];
                   if (tn>=0&&tn<NOTES&&!prIsSpecial(tn)) { existNote=tn; existPat=tp; break; }
                 }
+              }
+            }
+            if (!(existNote>=0&&existNote<NOTES&&!prIsSpecial(existNote))) {
+              for (int rr=mrow-1;rr>=0&&rr>=mrow-512;rr--) {
+                short sv=existPat->newData[rr][DIV_PAT_NOTE];
+                if (sv==-1) continue;
+                if (sv>=0&&sv<NOTES&&!prIsSpecial(sv)) {
+                  int dur=prInferDuration(existPat,rr,patLen);
+                  if (mrow<rr+dur) { existNote=sv; existNoteRow=rr; }
+                }
+                break;
               }
             }
             bool onNote=(existNote>=0&&existNote<NOTES&&!prIsSpecial(existNote));
@@ -1620,14 +1648,14 @@ void FurnaceGUI::drawPianoRoll() {
               prPreviewTimer=15; prPreviewChan=prChan;
               prepareUndo(GUI_UNDO_PATTERN_EDIT); prNoteUndoOpen=true;
             } else if (onNote) {
-              prPaintLen=prInferDuration(existPat,mrow,patLen);
+              prPaintLen=prInferDuration(existPat,existNoteRow,patLen);
               prLastNote=existNote;
               if (prMode==0) {
-                int dur=prInferDuration(existPat,mrow,patLen);
-                prSelRow0=mrow; prSelRow1=ImMin(mrow+dur-1,patLen-1);
+                int dur=prInferDuration(existPat,existNoteRow,patLen);
+                prSelRow0=existNoteRow; prSelRow1=ImMin(existNoteRow+dur-1,patLen-1);
                 prSelN0=existNote; prSelN1=existNote;
                 prDragMaybe=true;
-                prDragStartR=mrow; prDragStartN=existNote; prDragClickN=prSnapScale(mnote);
+                prDragStartR=existNoteRow; prDragStartN=existNote; prDragClickN=prSnapScale(mnote);
                 prDragDeltaR=0; prDragDeltaN=0;
                 prDragMouseStart=mp;
                 int insToUse=(curIns>=0)?curIns:(prevIns>=0?prevIns:-1);
@@ -1678,15 +1706,8 @@ void FurnaceGUI::drawPianoRoll() {
           if (ImGui::GetIO().KeyShift) {
             prErasing=true; prepareUndo(GUI_UNDO_PATTERN_EDIT);
           } else {
-            short noteHere=pat->newData[mrow][DIV_PAT_NOTE];
-            bool onNote=(noteHere>=0&&noteHere<NOTES&&!prIsSpecial(noteHere));
-            bool onSelNote=hasSel&&mrow>=selR0&&mrow<=selR1&&onNote&&noteHere>=selN0&&noteHere<=selN1;
-            if (onNote||onSelNote||hasSel) {
-              prCtxRow=mrow; prCtxNote=mnote;
-              ImGui::OpenPopup("##prCtx");
-            } else {
-              prErasing=true; prepareUndo(GUI_UNDO_PATTERN_EDIT);
-            }
+            prCtxRow=mrow; prCtxNote=mnote;
+            ImGui::OpenPopup("##prCtx");
           }
         }
 
@@ -1846,22 +1867,37 @@ void FurnaceGUI::drawPianoRoll() {
 
         if (prErasing&&ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
           short noteHere=pat->newData[mrow][DIV_PAT_NOTE];
-          if (noteHere>=0&&noteHere<NOTES&&!prIsSpecial(noteHere)) {
-            pat->newData[mrow][DIV_PAT_NOTE]=-1;
-            for (int ei=1;ei<DIV_MAX_COLS;ei++) pat->newData[mrow][ei]=-1;
-            for (int rr=mrow+1;rr<patLen;rr++) {
-              if (pat->newData[rr][DIV_PAT_NOTE]==DIV_NOTE_OFF) { pat->newData[rr][DIV_PAT_NOTE]=-1; break; }
-              if (pat->newData[rr][DIV_PAT_NOTE]!=-1) break;
+          int eraseRow=mrow;
+          if (!(noteHere>=0&&noteHere<NOTES&&!prIsSpecial(noteHere))) {
+            for (int rr=mrow-1;rr>=0&&rr>=mrow-512;rr--) {
+              short sv=pat->newData[rr][DIV_PAT_NOTE];
+              if (sv==-1) continue;
+              if (sv>=0&&sv<NOTES&&!prIsSpecial(sv)) {
+                int dur=prInferDuration(pat,rr,patLen);
+                if (mrow<rr+dur) { noteHere=sv; eraseRow=rr; }
+              }
+              break;
             }
-
-            bool prevActive=false;
-            for (int rr=mrow-1;rr>=0;rr--) {
-              short pn=pat->newData[rr][DIV_PAT_NOTE];
-              if (pn==DIV_NOTE_OFF||pn==DIV_NOTE_REL) break;
-              if (pn>=0&&pn<NOTES&&!prIsSpecial(pn)) { prevActive=true; break; }
+          }
+          if (noteHere>=0&&(noteHere<NOTES||prIsSpecial(noteHere))) {
+            if (prIsSpecial(noteHere)) {
+              pat->newData[eraseRow][DIV_PAT_NOTE]=-1;
+            } else {
+              pat->newData[eraseRow][DIV_PAT_NOTE]=-1;
+              for (int ei=1;ei<DIV_MAX_COLS;ei++) pat->newData[eraseRow][ei]=-1;
+              for (int rr=eraseRow+1;rr<patLen;rr++) {
+                if (pat->newData[rr][DIV_PAT_NOTE]==DIV_NOTE_OFF) { pat->newData[rr][DIV_PAT_NOTE]=-1; break; }
+                if (pat->newData[rr][DIV_PAT_NOTE]!=-1) break;
+              }
+              bool prevActive=false;
+              for (int rr=eraseRow-1;rr>=0;rr--) {
+                short pn=pat->newData[rr][DIV_PAT_NOTE];
+                if (pn==DIV_NOTE_OFF||pn==DIV_NOTE_REL) break;
+                if (pn>=0&&pn<NOTES&&!prIsSpecial(pn)) { prevActive=true; break; }
+              }
+              if (prevActive) pat->newData[eraseRow][DIV_PAT_NOTE]=DIV_NOTE_OFF;
+              e->noteOff(prChan);
             }
-            if (prevActive) pat->newData[mrow][DIV_PAT_NOTE]=DIV_NOTE_OFF;
-            e->noteOff(prChan);
             MARK_MODIFIED;
           }
         }
@@ -1951,6 +1987,13 @@ void FurnaceGUI::drawPianoRoll() {
         int insToUse2=(curIns>=0)?curIns:(prevIns>=0?prevIns:-1);
         if (pat->newData[mr][DIV_PAT_INS]==-1&&insToUse2>=0) pat->newData[mr][DIV_PAT_INS]=(short)insToUse2;
         if (pat->newData[mr][DIV_PAT_VOL]==-1) pat->newData[mr][DIV_PAT_VOL]=(short)volMax;
+        {
+          int noteEnd=mr+prPaintLen;
+          for (int rr=mr+1;rr<noteEnd&&rr<patLen;rr++)
+            if (pat->newData[rr][DIV_PAT_NOTE]==DIV_NOTE_OFF) pat->newData[rr][DIV_PAT_NOTE]=-1;
+          if (noteEnd<patLen&&(pat->newData[noteEnd][DIV_PAT_NOTE]==-1||pat->newData[noteEnd][DIV_PAT_NOTE]==DIV_NOTE_OFF))
+            pat->newData[noteEnd][DIV_PAT_NOTE]=DIV_NOTE_OFF;
+        }
         prLastNote=pn;
         makeUndo(GUI_UNDO_PATTERN_EDIT); MARK_MODIFIED;
       }
@@ -2453,27 +2496,35 @@ void FurnaceGUI::drawPianoRoll() {
   }
   if (!canRemFX) ImGui::EndDisabled();
   if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) ImGui::SetTooltip(canRemFX?"Remove an FX column":"No FX columns to remove!");
-  ImGui::SameLine();
-  ImGui::TextDisabled("(?)");
-  if (ImGui::IsItemHovered()) {
-    ImGui::BeginTooltip();
-    ImGui::TextUnformatted("FX Bar - how to use:");
-    ImGui::Separator();
-    ImGui::TextUnformatted("Lane selector: choose which data to view/edit");
-    char volLaneDesc[64];
-    snprintf(volLaneDesc,sizeof(volLaneDesc),"  Vol      - note volume per row (0 to %d)",volMax);
-    ImGui::TextUnformatted(volLaneDesc);
-    ImGui::TextUnformatted("  FX1..8   - effect code column (00 to FF)");
-    ImGui::TextUnformatted("  FX1V..8V - effect value column (00 to FF)");
-    ImGui::Separator();
-    ImGui::TextUnformatted("Left-click / drag - draw values");
-    ImGui::TextUnformatted("Shift + LMB drag  - erase values");
-    ImGui::TextUnformatted("Right-click drag  - draw a slope between two rows");
-    ImGui::TextUnformatted("  Mouse wheel while RMB held - adjust slope tension");
-    ImGui::TextUnformatted("Mouse wheel on lane selector - switch lanes");
-    ImGui::TextUnformatted("+ FX button - add an effect column (up to 8)");
-    ImGui::TextUnformatted("- FX button - remove the last effect column");
-    ImGui::EndTooltip();
+  {
+    float fxBtnW=ImGui::CalcTextSize("?").x+ImGui::GetStyle().FramePadding.x*2;
+    ImGui::SameLine(ImGui::GetWindowWidth()-fxBtnW-ImGui::GetStyle().WindowPadding.x);
+    if (ImGui::SmallButton("?##fxHelp")) prFxHelpOpen=!prFxHelpOpen;
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("FX bar help");
+    if (prFxHelpOpen) {
+      ImVec2 fxWinPos=ImGui::GetWindowPos();
+      ImGui::SetNextWindowPos(ImVec2(fxWinPos.x+ImGui::GetWindowWidth(),ImGui::GetItemRectMax().y),ImGuiCond_Appearing,ImVec2(1.0f,0.0f));
+      ImGui::SetNextWindowSize(ImVec2(300.0f*(float)dpiScale,0),ImGuiCond_Appearing);
+      if (ImGui::Begin("FX Bar Help##fxHelpWin",&prFxHelpOpen,ImGuiWindowFlags_NoScrollbar)) {
+        ImGui::TextUnformatted("FX Bar - how to use:");
+        ImGui::Separator();
+        ImGui::TextUnformatted("Lane selector: choose which data to view/edit");
+        char volLaneDesc[64];
+        snprintf(volLaneDesc,sizeof(volLaneDesc),"  Vol      - note volume per row (0 to %d)",volMax);
+        ImGui::TextUnformatted(volLaneDesc);
+        ImGui::TextUnformatted("  FX1..8   - effect code column (00 to FF)");
+        ImGui::TextUnformatted("  FX1V..8V - effect value column (00 to FF)");
+        ImGui::Separator();
+        ImGui::TextUnformatted("Left-click / drag - draw values");
+        ImGui::TextUnformatted("Shift + LMB drag  - erase values");
+        ImGui::TextUnformatted("Right-click drag  - draw a slope between two rows");
+        ImGui::TextUnformatted("  Mouse wheel while RMB held - adjust slope tension");
+        ImGui::TextUnformatted("Mouse wheel on lane selector - switch lanes");
+        ImGui::TextUnformatted("+ FX button - add an effect column (up to 8)");
+        ImGui::TextUnformatted("- FX button - remove the last effect column");
+      }
+      ImGui::End();
+    }
   }
 
   bool isEffNum=(prEffectLane>0&&(prEffectLane&1)==1);
