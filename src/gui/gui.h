@@ -537,6 +537,22 @@ enum FurnaceGUIColors {
 
   GUI_COLOR_EE_VALUE,
   GUI_COLOR_PLAYBACK_STAT,
+
+  GUI_COLOR_PIANO_ROLL_BG,
+  GUI_COLOR_PIANO_ROLL_KEY_WHITE,
+  GUI_COLOR_PIANO_ROLL_KEY_BLACK,
+  GUI_COLOR_PIANO_ROLL_KEY_BORDER,
+  GUI_COLOR_PIANO_ROLL_GRID,
+  GUI_COLOR_PIANO_ROLL_GRID_HI1,
+  GUI_COLOR_PIANO_ROLL_GRID_HI2,
+  GUI_COLOR_PIANO_ROLL_NOTE,
+  GUI_COLOR_PIANO_ROLL_NOTE_OFF,
+  GUI_COLOR_PIANO_ROLL_NOTE_REL,
+  GUI_COLOR_PIANO_ROLL_SELECTION,
+  GUI_COLOR_PIANO_ROLL_FX_NUM,
+  GUI_COLOR_PIANO_ROLL_FX_VAL,
+  GUI_COLOR_PIANO_ROLL_FX_VOL,
+
   GUI_COLOR_MAX
 };
 
@@ -2118,6 +2134,7 @@ class FurnaceGUI {
     String defaultAuthorName;
     String locale;
     DivConfig initialSys;
+    float prFontScale;
 
     Settings():
       settingsChanged(false),
@@ -2371,7 +2388,8 @@ class FurnaceGUI {
       emptyLabel2(".."),
       sdlAudioDriver(""),
       defaultAuthorName(""),
-      locale("") {}
+      locale(""),
+      prFontScale(1.0f) {}
   } settings;
 
   struct Tutorial {
@@ -2438,6 +2456,10 @@ class FurnaceGUI {
   bool mixerOpen, debugOpen, inspectorOpen, oscOpen, volMeterOpen, statsOpen, compatFlagsOpen;
   bool pianoOpen, notesOpen, tunerOpen, spectrumOpen, channelsOpen, regViewOpen, logOpen, effectListOpen, chanOscOpen;
   bool pianoRollOpen;
+  int prChan;
+  int prSelRow0, prSelRow1;
+  float prZoom, prNoteH, prTimelineH, prEffectLaneH;
+  bool prShowAllChans;
   bool subSongsOpen, findOpen, spoilerOpen, patManagerOpen, sysManagerOpen, clockOpen, speedOpen;
   bool groovesOpen, xyOscOpen, memoryOpen, csPlayerOpen, cvOpen, userPresetsOpen, refPlayerOpen;
   bool multiInsSetupOpen;
