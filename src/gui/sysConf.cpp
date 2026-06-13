@@ -2815,6 +2815,52 @@ bool FurnaceGUI::drawSysConf(int chan, int sysPos, DivSystem type, DivConfig& fl
     case DIV_SYSTEM_UPD1771C:
     case DIV_SYSTEM_MULTIPCM:
       break;
+    case DIV_SYSTEM_I8244: {
+      bool sysPal=flags.getInt("clockSel",0);
+
+      if (ImGui::Checkbox(_("PAL (8245)"),&sysPal)) {
+        altered=true;
+      }
+
+      if (ImGui::TreeNode(_("Tone grid (reachable pitches)"))) {
+        double clk=(sysPal?COLOR_PAL:COLOR_NTSC)*2.0;
+        double loBase=clk/(455.0*16.0);
+        double hiBase=clk/(455.0*4.0);
+        double tuning=e->song.tuning;
+        if (tuning<1.0) tuning=440.0;
+        const char* names[12]={"C-","C#","D-","D#","E-","F-","F#","G-","G#","A-","A#","B-"};
+        if (ImGui::BeginTable("i8244grid",3,ImGuiTableFlags_Borders|ImGuiTableFlags_SizingStretchSame)) {
+          ImGui::TableSetupColumn(_("cycles"));
+          ImGui::TableSetupColumn(_("low rate"));
+          ImGui::TableSetupColumn(_("high rate"));
+          ImGui::TableHeadersRow();
+          for (int k=1; k<=12; k++) {
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::Text("%d",k);
+            for (int r=0; r<2; r++) {
+              ImGui::TableNextColumn();
+              double freq=(r?hiBase:loBase)*(double)k/24.0;
+              double semi=12.0*log2(freq/tuning);
+              int midi=69+(int)round(semi);
+              int oct=midi/12-1;
+              const char* nm=names[((midi%12)+12)%12];
+              int cents=(int)round((semi-round(semi))*100.0);
+              ImGui::Text("%.1f Hz  %s%d %+dc",freq,nm,oct,cents);
+            }
+          }
+          ImGui::EndTable();
+        }
+        ImGui::TreePop();
+      }
+
+      if (altered) {
+        e->lockSave([&]() {
+          flags.set("clockSel",(int)sysPal);
+        });
+      }
+      break;
+    }
     case DIV_SYSTEM_YMU759:
     case DIV_SYSTEM_ESFM:
       supportsCustomRate=false;

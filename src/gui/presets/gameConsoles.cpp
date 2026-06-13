@@ -299,5 +299,16 @@ void initSystemPresetsGameConsoles(std::vector<FurnaceGUISysCategory>& sysCatego
     },
     "tickRate=50.81300813008130081301"
   );
+  ENTRY(
+    _("Magnavox Odyssey²"), {
+      CH(DIV_SYSTEM_I8244, 1.0f, 0, "")
+    }
+  );
+  ENTRY(
+    _("Philips Videopac"), {
+      CH(DIV_SYSTEM_I8244, 1.0f, 0, "clockSel=1")
+    },
+    "tickRate=50"
+  );
   CATEGORY_END;
 }

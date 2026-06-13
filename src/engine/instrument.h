@@ -100,6 +100,7 @@ enum DivInstrumentType: unsigned short {
   DIV_INS_SUPERVISION=64,
   DIV_INS_UPD1771C=65,
   DIV_INS_SID3=66,
+  DIV_INS_I8244=67,
   DIV_INS_MAX,
   DIV_INS_NULL
 };

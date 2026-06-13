@@ -325,7 +325,13 @@ const char* cmdName[]={
   "FM_FMS",
   "FM_AMS",
   "FM_FMS2",
-  "FM_AMS2"
+  "FM_AMS2",
+
+  "I8244_RATE",
+  "I8244_PULSE_WIDTH",
+  "I8244_RECIRCULATE",
+  "I8244_CYCLES",
+  "I8244_NOISE"
 };
 
 // fail build if you forgot to update the array

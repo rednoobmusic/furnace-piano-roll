@@ -207,6 +207,7 @@ const char* insTypes[DIV_INS_MAX+1][3]={
   {"Watara Supervision",ICON_FA_GAMEPAD,ICON_FUR_INS_SUPERVISION},
   {"NEC μPD1771C",ICON_FA_BAR_CHART,ICON_FUR_INS_UPD1771C},
   {"SID3",ICON_FA_KEYBOARD_O,ICON_FUR_INS_SID3},
+  {"Intel 8244",ICON_FA_MICROCHIP,ICON_FA_MICROCHIP},
   {NULL,ICON_FA_QUESTION,ICON_FA_QUESTION}
 };
 
@@ -1109,6 +1110,7 @@ const FurnaceGUIColorDef guiColors[GUI_COLOR_MAX]={
   D(GUI_COLOR_INSTR_SUPERVISION,_N("Supervision"),ImVec4(0.52f,1.0f,0.6f,1.0f)),
   D(GUI_COLOR_INSTR_UPD1771C,_N("μPD1771C"),ImVec4(0.94f,0.52f,0.6f,1.0f)),
   D(GUI_COLOR_INSTR_SID3,_N("SID3"),ImVec4(0.6f,0.75f,0.6f,1.0f)),
+  D(GUI_COLOR_INSTR_I8244,_N("Intel 8244"),ImVec4(1.0f,0.5f,0.2f,1.0f)),
   D(GUI_COLOR_INSTR_UNKNOWN,_N("Other/Unknown"),ImVec4(0.3f,0.3f,0.3f,1.0f)),
 
   D(GUI_COLOR_CHANNEL_BG,_N("Single color (background)"),ImVec4(0.4f,0.6f,0.8f,1.0f)),
@@ -1373,6 +1375,7 @@ const int availableSystems[]={
   DIV_SYSTEM_SUPERVISION,
   DIV_SYSTEM_UPD1771C,
   DIV_SYSTEM_SID3,
+  DIV_SYSTEM_I8244,
   DIV_SYSTEM_MULTIPCM,
   0 // don't remove this last one!
 };
@@ -1428,6 +1431,7 @@ const int chipsSquare[]={
   DIV_SYSTEM_T6W28,
   DIV_SYSTEM_PV1000,
   DIV_SYSTEM_TED,
+  DIV_SYSTEM_I8244,
   0 // don't remove this last one!
 };
 
@@ -1478,6 +1482,7 @@ const int chipsSpecial[]={
   DIV_SYSTEM_SUPERVISION,
   DIV_SYSTEM_UPD1771C,
   DIV_SYSTEM_SID3,
+  DIV_SYSTEM_I8244,
   0 // don't remove this last one!
 };
 

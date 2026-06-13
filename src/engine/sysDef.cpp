@@ -2744,6 +2744,27 @@ void DivEngine::registerSystems() {
     namcoEffectHandlerMap
   );
 
+  sysDefs[DIV_SYSTEM_I8244]=new DivSysDef(
+    _("Intel 8244"), NULL, 0xe6, 0, 1, 1, 1,
+    false, true, 0, false, 0, 24, 2,
+    _("the video chip of the Magnavox Odyssey², which also does sound.\n"
+    "a 24-bit looping shift register with two clock rates, noise and 16 volume levels.\n"
+    "the 8245 is the PAL version."),
+    DivChanDefFunc({
+      DivChanDef(_("Sound"), "SND", DIV_CH_PULSE, DIV_INS_I8244)
+    }),
+    {},
+    {
+      {0x10, {DIV_CMD_WAVE, _("10xx: Set waveform")}},
+      {0x11, {DIV_CMD_STD_NOISE_MODE, _("11xx: Set mode (0: square; 1: noise; 2: wavetable)")}},
+      {0x12, {DIV_CMD_I8244_RATE, _("12xx: Force shift rate (0: auto; 1: low; 2: high)")}},
+      {0x13, {DIV_CMD_I8244_PULSE_WIDTH, _("13xx: Set pulse width (00 to 18; 0C=50%)")}},
+      {0x14, {DIV_CMD_I8244_RECIRCULATE, _("14xx: Set recirculation (0: looping tone; 1: one-shot decay)")}},
+      {0x15, {DIV_CMD_I8244_CYCLES, _("15xx: Force cycle count (0: auto; 1 to C: fixed tone)")}},
+      {0x16, {DIV_CMD_I8244_NOISE, _("16xx: Noise overlay (0: off; 1: XOR noise over tone)")}},
+    }
+  );
+
   sysDefs[DIV_SYSTEM_DUMMY]=new DivSysDef(
     _("Dummy System"), NULL, 0xfd, 0, 8, 1, 128,
     false, true, 0, false, 0, 0, 0,
