@@ -3448,11 +3448,15 @@ void FurnaceGUI::drawPianoRoll() {
           }
         } else if (fxLaneXy) {
           const char* d=e->getEffectDesc((unsigned char)fxLaneXyCode,prChan,false);
+          bool isPan=(fxColors[(unsigned char)fxLaneXyCode]==GUI_COLOR_PATTERN_EFFECT_PANNING);
           if (fxLanePan) {
             snprintf(tip,sizeof(tip),"%s %s  (%02X: %s)",fxXyBandX?"left":"right",fxXyNib?"on":"off",
               (unsigned char)fxLaneXyCode,d?d:"");
           } else {
-            snprintf(tip,sizeof(tip),"%s = %X  (%02X: %s)",fxXyBandX?"x (left)":"y (right)",fxXyNib,
+            // left/right only means something for panning. for other x/y effects
+            // the description names x and y, so just label the band x or y.
+            const char* band=isPan?(fxXyBandX?"left":"right"):(fxXyBandX?"x":"y");
+            snprintf(tip,sizeof(tip),"%s = %X  (%02X: %s)",band,fxXyNib,
               (unsigned char)fxLaneXyCode,d?d:"");
           }
         } else {
