@@ -56,8 +56,8 @@ class DivWorkPool;
 
 #define DIV_UNSTABLE
 
-#define DIV_VERSION "dev245"
-#define DIV_ENGINE_VERSION 245
+#define DIV_VERSION "dev248"
+#define DIV_ENGINE_VERSION 248
 // for imports
 #define DIV_VERSION_MOD 0xff01
 #define DIV_VERSION_FC 0xff02
@@ -246,7 +246,8 @@ struct DivChannelState {
 struct DivNoteEvent {
   signed char channel;
   short ins;
-  signed char note, volume;
+  unsigned char note;
+  signed char volume;
   bool on, nop, insChange, fromMIDI;
   DivNoteEvent(int c, int i, int n, int v, bool o, bool ic=false, bool fm=false):
     channel(c),
@@ -668,6 +669,8 @@ class DivEngine {
     void notifyWaveChange(int wave);
     // notify sample change
     void notifySampleChange(int sample);
+    // notify a change which requires regenerating the pitch table
+    void notifyPitchTable(int sample=-1);
 
     // dispatch a command
     int dispatchCmd(DivCommand c);
@@ -730,12 +733,15 @@ class DivEngine {
     void factoryReset();
 
     // calculate base frequency/period
+    // DEPRECATED. use DivPitchTable instead.
     double calcBaseFreq(double clock, double divider, int note, bool period);
 
     // calculate base frequency in f-num/block format
+    // TODO: get rid of this and use DivPitchTable...
     int calcBaseFreqFNumBlock(double clock, double divider, int note, int bits, int fixedBlock);
 
     // calculate frequency/period
+    // DEPRECATED. use DivPitchTable instead.
     int calcFreq(int base, int pitch, int arp, bool arpFixed, bool period=false, int octave=0, int pitch2=0, double clock=1.0, double divider=1.0, int blockBits=0, int fixedBlock=0);
 
     // calculate arpeggio
@@ -890,6 +896,9 @@ class DivEngine {
 
     // map volume to gain
     float getGain(int ch, int vol);
+
+    // get max frequency/period of a channel
+    unsigned int getMaxFreqChan(int ch);
 
     // get current order
     unsigned char getOrder();
@@ -1101,7 +1110,7 @@ class DivEngine {
     DivChannelState* getChanState(int chan);
 
     // get dispatch channel state
-    void* getDispatchChanState(int chan);
+    SharedChannel* getDispatchChanState(int chan);
 
     // get channel pairs
     void getChanPaired(int chan, std::vector<DivChannelPair>& ret);
