@@ -263,7 +263,7 @@ void FurnaceGUI::prSimPitch(int ch, std::vector<PrPitchPoint>& out) {
     if (linPitch) {
       semiOff=acc/unitsPerSemitone;
     } else {
-      double baseP=e->calcBaseFreq(chipClock,1.0,note,true);
+      double baseP=e->calcBaseFreq(chipClock,1.0,note+60,true);
       double slidP=baseP-acc;
       semiOff=(slidP>0.0)?(float)(log2(baseP/slidP)*12.0):(float)(NOTES-1);
     }
@@ -495,7 +495,7 @@ void FurnaceGUI::prSimPitch(int ch, std::vector<PrPitchPoint>& out) {
         if (activePortaTarget>=0) {
           float targetUnits=linPitch
             ?(float)(activePortaTarget-activeNote)*unitsPerSemitone
-            :(float)(e->calcBaseFreq(chipClock,1.0,activePortaTarget,true)-e->calcBaseFreq(chipClock,1.0,activeNote,true));
+            :(float)(e->calcBaseFreq(chipClock,1.0,activePortaTarget+60,true)-e->calcBaseFreq(chipClock,1.0,activeNote+60,true));
           if (accumPitch<targetUnits) accumPitch=ImMin(accumPitch+activePortaSpeed,targetUnits);
           else                        accumPitch=ImMax(accumPitch-activePortaSpeed,targetUnits);
           if (fabsf(accumPitch-targetUnits)<0.5f) {
@@ -2058,7 +2058,7 @@ void FurnaceGUI::drawPianoRoll() {
           int snappedPiano=prSnapScale(mnote);
           if (prPianoHeld!=snappedPiano) {
             if (prPianoHeld>=0) e->noteOff(prChan);
-            e->noteOn(prChan,curIns>=0?curIns:(prevIns>=0?prevIns:0),snappedPiano-60);
+            e->noteOn(prChan,curIns>=0?curIns:(prevIns>=0?prevIns:0),snappedPiano);
             prPianoHeld=snappedPiano;
           }
         }
@@ -2221,7 +2221,7 @@ void FurnaceGUI::drawPianoRoll() {
               prPaintNote=prSnapScale(mnote);
               int insToUse=(curIns>=0)?curIns:(prevIns>=0?prevIns:-1);
               if (prPreviewTimer>0&&prPreviewChan>=0) e->noteOff(prPreviewChan);
-              e->noteOn(prChan,insToUse>=0?insToUse:0,prPaintNote-60);
+              e->noteOn(prChan,insToUse>=0?insToUse:0,prPaintNote);
               prPreviewTimer=15; prPreviewChan=prChan;
               prepareUndo(GUI_UNDO_PATTERN_EDIT); prNoteUndoOpen=true;
             } else if (onNote) {
@@ -2237,7 +2237,7 @@ void FurnaceGUI::drawPianoRoll() {
                 prDragMouseStart=mp;
                 int insToUse=(curIns>=0)?curIns:(prevIns>=0?prevIns:-1);
                 if (prPreviewTimer>0&&prPreviewChan>=0) e->noteOff(prPreviewChan);
-                e->noteOn(prChan,insToUse>=0?insToUse:0,existNote-60);
+                e->noteOn(prChan,insToUse>=0?insToUse:0,existNote);
                 prPreviewTimer=15; prPreviewChan=prChan;
                 prepareUndo(GUI_UNDO_PATTERN_EDIT); prNoteUndoOpen=true;
               } else {
@@ -2268,7 +2268,7 @@ void FurnaceGUI::drawPianoRoll() {
                 prDrawSizing=true; prDrawRow=mrow; prDrawDragged=false;
                 prLastNote=drawNote; prPaintNote=drawNote;
                 if (prPreviewTimer>0&&prPreviewChan>=0) e->noteOff(prPreviewChan);
-                e->noteOn(prChan,insToUse>=0?insToUse:0,drawNote-60);
+                e->noteOn(prChan,insToUse>=0?insToUse:0,drawNote);
                 prPreviewTimer=15; prPreviewChan=prChan;
                 MARK_MODIFIED;
                 prepareUndo(GUI_UNDO_PATTERN_EDIT); prNoteUndoOpen=true;
@@ -2279,7 +2279,7 @@ void FurnaceGUI::drawPianoRoll() {
                   {
                     int insToUse=(curIns>=0)?curIns:(prevIns>=0?prevIns:-1);
                     if (prPreviewTimer>0&&prPreviewChan>=0) e->noteOff(prPreviewChan);
-                    e->noteOn(prChan,insToUse>=0?insToUse:0,prPaintNote-60);
+                    e->noteOn(prChan,insToUse>=0?insToUse:0,prPaintNote);
                     prPreviewTimer=15; prPreviewChan=prChan;
                   }
                 } else {
@@ -2371,7 +2371,7 @@ void FurnaceGUI::drawPianoRoll() {
             if (previewNote!=prPaintHeld) {
               int insToUse=(curIns>=0)?curIns:(prevIns>=0?prevIns:-1);
               if (prPaintHeld>=0) e->noteOff(prChan);
-              e->noteOn(prChan,insToUse>=0?insToUse:0,previewNote-60);
+              e->noteOn(prChan,insToUse>=0?insToUse:0,previewNote);
               prPaintHeld=previewNote;
             }
             float oBase=ox+pianoW+(float)ord*totalW;
@@ -2436,7 +2436,7 @@ void FurnaceGUI::drawPianoRoll() {
           }
           if (pn!=prPaintHeld) {
             if (prPaintHeld>=0) e->noteOff(paintCh);
-            e->noteOn(paintCh,insToUse>=0?insToUse:0,pn-60);
+            e->noteOn(paintCh,insToUse>=0?insToUse:0,pn);
             prPaintHeld=pn;
           }
           MARK_MODIFIED;
