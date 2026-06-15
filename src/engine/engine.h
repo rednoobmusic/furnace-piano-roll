@@ -675,6 +675,13 @@ class DivEngine {
     // dispatch a command
     int dispatchCmd(DivCommand c);
 
+    // send a raw effect code+value to a channel (for live preview)
+    void previewEffect(int ch, unsigned char effect, unsigned char effectVal) {
+      perSystemPreEffect(ch,effect,effectVal);
+      perSystemEffect(ch,effect,effectVal);
+      perSystemPostEffect(ch,effect,effectVal);
+    }
+
     // get system IDs
     static DivSystem systemFromFileFur(unsigned char val);
     static unsigned char systemToFileFur(DivSystem val);
@@ -805,6 +812,11 @@ class DivEngine {
 
     // get effect description
     const char* getEffectDesc(unsigned char effect, int chan, bool notNull=false);
+
+    // returns whether the chip at channel chan would accept this effect value,
+    // i.e. the effect's value conversion does not reject it (DivDoNotHandleEffect).
+    // effects with no chip handler, or a non-throwing conversion, return true.
+    bool effectValIsValid(int chan, unsigned char effect, unsigned char effectVal);
 
     // get channel type
     // - 0: FM
@@ -1081,6 +1093,9 @@ class DivEngine {
 
     // go to order
     void setOrder(unsigned char order);
+
+    // go to order + specific row
+    void seekTo(unsigned char order, int row);
 
     // update system flags
     void updateSysFlags(int system, bool restart, bool render);
