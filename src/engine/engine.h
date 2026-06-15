@@ -807,6 +807,11 @@ class DivEngine {
     // get effect description
     const char* getEffectDesc(unsigned char effect, int chan, bool notNull=false);
 
+    // returns whether the chip at channel chan would accept this effect value,
+    // i.e. the effect's value conversion does not reject it (DivDoNotHandleEffect).
+    // effects with no chip handler, or a non-throwing conversion, return true.
+    bool effectValIsValid(int chan, unsigned char effect, unsigned char effectVal);
+
     // get channel type
     // - 0: FM
     // - 1: pulse

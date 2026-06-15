@@ -40,6 +40,7 @@
 
 #include "fileDialog.h"
 #include "newFilePicker.h"
+#include "pianoRoll.h"
 
 #define FURNACE_APP_ID "org.tildearrow.furnace"
 
@@ -2460,6 +2461,100 @@ class FurnaceGUI {
   int prSelRow0, prSelRow1;
   float prZoom, prNoteH, prTimelineH, prEffectLaneH;
   bool prShowAllChans;
+  // piano roll interaction state types live in pianoRoll.h
+  float prSyncScrollX=0.0f;
+  bool prFollow=true;
+  bool prShowPitchSlide=true;
+  bool prShowVolBars=true;
+  int prEffectLane=0;
+  bool prPainting=false;
+  bool prErasing=false;
+  bool prResizing=false;
+  int prResizeRow=-1;
+  bool prSelecting=false;
+  int prSelR0=-1, prSelR1=-1, prSelN0=-1, prSelN1=-1;
+  bool prFxUndoOpen=false;
+  bool prNoteUndoOpen=false;
+  float prPanDX=0.0f, prPanDY=0.0f;
+  int prPianoHeld=-1;
+  int prFxLastDragRow=-1;
+  bool prFxSlopeActive=false;
+  int prFxSlopeR0=-1, prFxSlopeR1=-1;
+  int prFxSlopeV0=0, prFxSlopeV1=0;
+  float prFxSlopeTension=0.0f;
+  int prLastNote=96;
+  int prPaintNote=-1;
+  int prQuantize=1;
+  int prScaleRoot=0;
+  int prScaleType=0;
+  int prDragSelStartR=-1;
+  int prDragSelStartN=-1;
+  int prChanEnd=-1;
+  bool prPolyEnabled=false;
+  int prPaintHeld=-1;
+  int prPaintChan=-1;
+  int prPaintLen=1;
+  int prMode=0;
+  bool prDrawSizing=false;
+  int prDrawRow=-1;
+  bool prDrawDragged=false;
+  bool prDragMaybe=false;
+  bool prDragging=false;
+  int prDragStartR=-1, prDragStartN=-1;
+  int prDragDeltaR=0, prDragDeltaN=0;
+  ImVec2 prDragMouseStart=ImVec2(0,0);
+  std::vector<PrDragNote> prDragBuf;
+  bool prDragHasCopy=false;
+  int prPreviewTimer=0;
+  int prPreviewChan=-1;
+  int prFollowPrevPlayOrd=-1;
+  int prSnapTargetOrd=-1;
+  float prPrevZoom=1.0f;
+  bool prKbdShowConfig=false;
+  bool prFxHelpOpen=false;
+  bool prColorByIns=false;
+  bool prNoteTooltip=true;
+  int prLoopR0=-1, prLoopR1=-1;
+  bool prLoopDragging=false;
+  int prLoopDragStart=-1;
+  bool prScrollInit=false;
+  int prLastScrollChan=-1;
+  float prFollowOffset=0.35f;
+  bool prWasPlaying=false;
+  float prFollowScrollTarget=-1.0f;
+  bool prFxViewAll=false;
+  bool prFxRows=false;
+  int prFxPreviewLast=-1;
+  int prCtxRow=-1, prCtxNote=-1;
+  bool prFxPickerOpen=false;
+  int prFxPickerRow=-1;
+  int prFxPickerEffIdx=0;
+  char prFxPickerSearch[128]="";
+  std::vector<PrFxEntry> prFxPickerList;
+  // per-effect valid value span (engine-probed), cached per channel
+  int prFxValidChan=-1;
+  short prFxValidLo[256];
+  short prFxValidHi[256];
+  // which x/y band a drag is locked to (0=x/left, 1=y/right, -1=none)
+  int prFxXyBand=-1;
+  // value duplicated across a left-drag (captured from the cell the drag began on)
+  int prFxFillVal=-1;
+  int prFxFillCode=-1;
+  // right-drag erase in progress on an effect-code (selector) lane
+  bool prFxCodeErasing=false;
+  // FX-lane row selection + clipboard (Ctrl+drag to select, Ctrl+C/X/V)
+  int prFxSelR0=-1, prFxSelR1=-1;
+  int prFxHoverRow=-1; // row under the mouse in the FX lane (paste target)
+  std::vector<PrFxClipEntry> prFxClipData;
+  int prFxClipKind=0; // 0 = effect (code+value), 1 = value only, 2 = volume
+  bool prClipIsFx=false;
+  std::vector<PrClipEntry> prClipboard;
+  int prClipRows=0;
+  std::vector<PrPolyGroup> prPolyGroups;
+  int prNewGrpFrom=0;
+  int prNewGrpTo=0;
+  String prPolyMarkerCache;
+  std::vector<PrPitchPoint> prPitchTraj;
   bool subSongsOpen, findOpen, spoilerOpen, patManagerOpen, sysManagerOpen, clockOpen, speedOpen;
   bool groovesOpen, xyOscOpen, memoryOpen, csPlayerOpen, cvOpen, userPresetsOpen, refPlayerOpen;
   bool multiInsSetupOpen;
@@ -3126,6 +3221,18 @@ class FurnaceGUI {
   void drawCompatFlags();
   void drawPiano();
   void drawPianoRoll();
+  // piano roll helpers
+  void prPolySerialize(DivSong* s);
+  void prPolyDeserialize(DivSong* s);
+  void prPolyCommit(DivSong* s);
+  bool prScaleHasNote(int pitchClass);
+  int prSnapScale(int note);
+  // simulate channel ch's pitch contour over the song
+  void prSimPitch(int ch, std::vector<PrPitchPoint>& out);
+  void drawPianoRollChannelPopup(int totalChans);
+  void drawPianoRollPolyPopup(int totalChans);
+  void drawPianoRollContextMenu(DivPattern* pat, int patLen, int volMax);
+  void drawPianoRollKeys(DivPattern* pat, int patLen, int volMax);
   void drawNotes(bool asChild=false);
   void drawTuner();
   void drawSpectrum();

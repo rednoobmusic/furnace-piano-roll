@@ -203,6 +203,30 @@ const char* DivEngine::getEffectDesc(unsigned char effect, int chan, bool notNul
   return notNull?_("Invalid effect"):NULL;
 }
 
+bool DivEngine::effectValIsValid(int chan, unsigned char effect, unsigned char effectVal) {
+  if (chan<0 || chan>=song.chans) return true;
+  DivSysDef* sysDef=sysDefs[song.sysOfChan[chan]];
+  if (sysDef==NULL) return true;
+  const EffectHandler* handler=NULL;
+  auto iter=sysDef->effectHandlers.find(effect);
+  if (iter!=sysDef->effectHandlers.end()) {
+    handler=&iter->second;
+  } else if ((iter=sysDef->postEffectHandlers.find(effect))!=sysDef->postEffectHandlers.end()) {
+    handler=&iter->second;
+  } else if ((iter=sysDef->preEffectHandlers.find(effect))!=sysDef->preEffectHandlers.end()) {
+    handler=&iter->second;
+  }
+  if (handler==NULL) return true;
+  // mirror perSystemEffect: a value conversion may reject the value
+  try {
+    if (handler->val) handler->val(effect,effectVal);
+    if (handler->val2) handler->val2(effect,effectVal);
+  } catch (DivDoNotHandleEffect& e) {
+    return false;
+  }
+  return true;
+}
+
 void DivEngine::calcSongTimestamps() {
   if (curSubSong!=NULL) {
     curSubSong->calcTimestamps(song.chans,song.grooves,song.compatFlags.jumpTreatment,song.compatFlags.ignoreJumpAtEnd,song.compatFlags.brokenSpeedSel,song.compatFlags.delayBehavior);

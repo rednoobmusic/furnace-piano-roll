@@ -8490,6 +8490,8 @@ void FurnaceGUI::syncState() {
   oscZoomSlider=e->getConfBool("oscZoomSlider",false);
   oscWindowSize=e->getConfFloat("oscWindowSize",20.0f);
 
+  prEffectLaneH=ImClamp(e->getConfFloat("prEffectLaneH",40.0f),40.0f,500.0f);
+
   spectrum.bins=e->getConfInt("spectrumBins",2048);
   spectrum.xZoom=e->getConfFloat("spectrumxZoom",1.0f);
   spectrum.xOffset=e->getConfFloat("spectrumxOffset",0);
@@ -8662,6 +8664,8 @@ void FurnaceGUI::commitState(DivConfig& conf) {
   conf.set("oscZoom",oscZoom);
   conf.set("oscZoomSlider",oscZoomSlider);
   conf.set("oscWindowSize",oscWindowSize);
+
+  conf.set("prEffectLaneH",prEffectLaneH);
 
   // commit spectrum state
   conf.set("spectrumBins",spectrum.bins);
