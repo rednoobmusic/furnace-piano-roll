@@ -887,7 +887,7 @@ void FurnaceGUI::drawPianoRollContextMenu(DivPattern* pat, int patLen, int volMa
           short nv=pat->newData[r][DIV_PAT_NOTE];
           if (nv>=0&&nv<NOTES&&!prIsSpecial(nv)) pat->newData[r][DIV_PAT_NOTE]=-1;
         }
-        for (auto& ce:prClipboard) {
+        for (PrClipEntry& ce:prClipboard) {
           int r=baseRow+ce.rowOff;
           if (r>=0&&r<patLen) {
             pat->newData[r][DIV_PAT_NOTE]=ce.note;
@@ -1015,7 +1015,7 @@ void FurnaceGUI::drawPianoRollKeys(DivPattern* pat, int patLen, int volMax) {
           short nv=pat->newData[r][DIV_PAT_NOTE];
           if (nv>=0&&nv<NOTES&&!prIsSpecial(nv)) pat->newData[r][DIV_PAT_NOTE]=-1;
         }
-        for (auto& ce:prClipboard) {
+        for (PrClipEntry& ce:prClipboard) {
           int r=baseRow+ce.rowOff;
           if (r>=0&&r<patLen) {
             pat->newData[r][DIV_PAT_NOTE]=ce.note;
@@ -1061,7 +1061,7 @@ void FurnaceGUI::drawPianoRollKeys(DivPattern* pat, int patLen, int volMax) {
         if (prClipIsFx&&pasteOk&&!prFxClipData.empty()&&ImGui::IsKeyPressed(ImGuiKey_V,false)&&ImGui::GetIO().KeyCtrl) {
           int baseRow=(prFxHoverRow>=0)?prFxHoverRow:(fxHasSel?ffsr0:cursor.y);
           prepareUndo(GUI_UNDO_PATTERN_EDIT);
-          for (auto& ce:prFxClipData) {
+          for (PrFxClipEntry& ce:prFxClipData) {
             int r=baseRow+ce.rowOff;
             if (r<0||r>=patLen) continue;
             if (prFxClipKind==2) {
@@ -1123,7 +1123,7 @@ void FurnaceGUI::drawPianoRollKeys(DivPattern* pat, int patLen, int volMax) {
                   toMove.push_back({r,nv,pat->newData[r][DIV_PAT_INS],pat->newData[r][DIV_PAT_VOL],hasOff});
                 }
               }
-              for (auto& sn:toMove) {
+              for (ShiftNote& sn:toMove) {
                 if (sn.hasOff) {
                   int oldOff=sn.r+prInferDuration(pat,sn.r,patLen);
                   if (oldOff<patLen&&pat->newData[oldOff][DIV_PAT_NOTE]==DIV_NOTE_OFF)
@@ -1131,7 +1131,7 @@ void FurnaceGUI::drawPianoRollKeys(DivPattern* pat, int patLen, int volMax) {
                 }
                 for (int col=0;col<DIV_MAX_COLS;col++) pat->newData[sn.r][col]=-1;
               }
-              for (auto& sn:toMove) {
+              for (ShiftNote& sn:toMove) {
                 int dr=sn.r+rDir;
                 pat->newData[dr][DIV_PAT_NOTE]=sn.note;
                 pat->newData[dr][DIV_PAT_INS]=sn.ins;
@@ -1152,7 +1152,7 @@ void FurnaceGUI::drawPianoRollKeys(DivPattern* pat, int patLen, int volMax) {
                   toMove.push_back({r,nv,pat->newData[r][DIV_PAT_INS],pat->newData[r][DIV_PAT_VOL],hasOff});
                 }
               }
-              for (auto& sn:toMove) {
+              for (ShiftNote& sn:toMove) {
                 if (sn.hasOff) {
                   int oldOff=sn.r+prInferDuration(pat,sn.r,patLen);
                   if (oldOff<patLen&&pat->newData[oldOff][DIV_PAT_NOTE]==DIV_NOTE_OFF)
@@ -1160,7 +1160,7 @@ void FurnaceGUI::drawPianoRollKeys(DivPattern* pat, int patLen, int volMax) {
                 }
                 for (int col=0;col<DIV_MAX_COLS;col++) pat->newData[sn.r][col]=-1;
               }
-              for (auto& sn:toMove) {
+              for (ShiftNote& sn:toMove) {
                 int dr=sn.r+rDir;
                 pat->newData[dr][DIV_PAT_NOTE]=sn.note;
                 pat->newData[dr][DIV_PAT_INS]=sn.ins;
@@ -1919,7 +1919,7 @@ void FurnaceGUI::drawPianoRoll() {
 
     if (prDragging&&!prDragBuf.empty()) {
       float curBase=ox+pianoW+(float)ord*totalW;
-      for (auto& dn:prDragBuf) {
+      for (PrDragNote& dn:prDragBuf) {
         int nr=ImClamp(dn.row+prDragDeltaR,0,patLen-1);
         int nn=ImClamp((int)dn.note+prDragDeltaN,0,NOTES-1);
         int nEnd=ImClamp(dn.endRow+prDragDeltaR,0,patLen);
@@ -2375,7 +2375,7 @@ void FurnaceGUI::drawPianoRoll() {
               prPaintHeld=previewNote;
             }
             float oBase=ox+pianoW+(float)ord*totalW;
-            for (auto& dn:prDragBuf) {
+            for (PrDragNote& dn:prDragBuf) {
               int nr=ImClamp(dn.row+prDragDeltaR,0,patLen-1);
               int nn=prSnapScale(ImClamp((int)dn.note+prDragDeltaN,0,NOTES-1));
               int nEnd=ImClamp(dn.endRow+prDragDeltaR,0,patLen);
@@ -2558,7 +2558,7 @@ void FurnaceGUI::drawPianoRoll() {
           if (prDragDeltaR!=0||prDragDeltaN!=0) {
             // a plain drag clears the originals first; a Ctrl-drag leaves them (clone)
             if (!prDragHasCopy) {
-              for (auto& dn:prDragBuf) {
+              for (PrDragNote& dn:prDragBuf) {
                 int cpIdx=e->curSubSong->orders.ord[dn.chan][ord];
                 DivPattern* cp=e->curPat[dn.chan].getPattern(cpIdx,true);
                 if (!cp) continue;
@@ -2567,7 +2567,7 @@ void FurnaceGUI::drawPianoRoll() {
                   cp->newData[dn.endRow][DIV_PAT_NOTE]=-1;
               }
             }
-            for (auto& dn:prDragBuf) {
+            for (PrDragNote& dn:prDragBuf) {
               int nr=ImClamp(dn.row+prDragDeltaR,0,patLen-1);
               int nn=prSnapScale(ImClamp((int)dn.note+prDragDeltaN,0,NOTES-1));
               int cpIdx=e->curSubSong->orders.ord[dn.chan][ord];
@@ -3074,10 +3074,10 @@ void FurnaceGUI::drawPianoRoll() {
           if (!isEffNum) for (int q=1;q<4;q++) {
             float qy=lBarBot-lBarH*(q/4.0f);
             dl->AddLine(ImVec2(fxBase,qy),ImVec2(fxBase+totalW,qy),(q==2)?cGridHi1:cGrid);
-            char qlbl[8];
+            char qlbl[16];
             int qv=(int)(laneMax*q/4.0f+0.5f);
-            if (prEffectLane==0) snprintf(qlbl,8,"%d",qv);
-            else snprintf(qlbl,8,"%02X",(unsigned char)qv);
+            if (prEffectLane==0) snprintf(qlbl,sizeof(qlbl),"%d",qv);
+            else snprintf(qlbl,sizeof(qlbl),"%02X",(unsigned char)qv);
             dl->AddText(ImVec2(fxBase+2,qy-fSz.y*0.5f),IM_COL32(140,140,140,100),qlbl);
           }
         }
@@ -3656,7 +3656,7 @@ void FurnaceGUI::drawPianoRoll() {
       bool anyShown=false;
       for (int cat=1;cat<=9;cat++) {
         bool header=false;
-        for (auto& ent: prFxPickerList) {
+        for (PrFxEntry& ent:prFxPickerList) {
           if ((int)fxColors[ent.code]-(int)GUI_COLOR_PATTERN_EFFECT_INVALID!=cat) continue;
           if (!fxMatch(ent.label)) continue;
           if (!header) {
