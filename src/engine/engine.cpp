@@ -3615,7 +3615,7 @@ void DivEngine::noteOn(int chan, int ins, int note, int vol) {
 void DivEngine::noteOff(int chan) {
   if (chan<0 || chan>=song.chans) return;
   BUSY_BEGIN;
-  pendingNotes.push_back(DivNoteEvent(chan,-1,-1,-1,false));
+  pendingNotes.push_back(DivNoteEvent(chan,-1,0,-1,false));
   if (!playing) {
     reset();
     freelance=true;
@@ -3734,7 +3734,7 @@ bool DivEngine::autoNoteOn(int ch, int ins, int note, int vol, int transpose) {
     if ((!midiPoly) || (isViable[finalChan] && chan[finalChan].midiNote==-1 && (insInst->type==DIV_INS_OPL || getChannelType(finalChan)==finalChanType || notInViableChannel))) {
       chan[finalChan].midiNote=note;
       chan[finalChan].midiAge=midiAgeCounter++;
-      pendingNotes.push_back(DivNoteEvent(finalChan,ins,note+transpose,vol,true));
+      pendingNotes.push_back(DivNoteEvent(finalChan,ins,note+((note&DIV_NOTE_RAW_FLAG)?0:transpose),vol,true));
       return true;
     }
     if (++finalChan>=song.chans) {
@@ -3755,7 +3755,7 @@ bool DivEngine::autoNoteOn(int ch, int ins, int note, int vol, int transpose) {
 
   chan[candidate].midiNote=note;
   chan[candidate].midiAge=midiAgeCounter++;
-  pendingNotes.push_back(DivNoteEvent(candidate,ins,note+transpose,vol,true));
+  pendingNotes.push_back(DivNoteEvent(candidate,ins,note+((note&DIV_NOTE_RAW_FLAG)?0:transpose),vol,true));
   return true;
 }
 
@@ -3766,7 +3766,7 @@ void DivEngine::autoNoteOff(int ch, int note, int vol) {
   //if (ch<0 || ch>=song.chans) return;
   for (int i=0; i<song.chans; i++) {
     if (chan[i].midiNote==note) {
-      pendingNotes.push_back(DivNoteEvent(i,-1,-1,-1,false));
+      pendingNotes.push_back(DivNoteEvent(i,-1,0,-1,false));
       chan[i].midiNote=-1;
     }
   }
@@ -3778,7 +3778,7 @@ void DivEngine::autoNoteOffAll() {
   }
   for (int i=0; i<song.chans; i++) {
     if (chan[i].midiNote!=-1) {
-      pendingNotes.push_back(DivNoteEvent(i,-1,-1,-1,false));
+      pendingNotes.push_back(DivNoteEvent(i,-1,0,-1,false));
       chan[i].midiNote=-1;
     }
   }
