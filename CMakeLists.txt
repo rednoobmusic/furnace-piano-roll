@@ -464,6 +464,24 @@ if (USE_SDL2)
       set(SDL_OPENGLES OFF CACHE BOOL "Enable OpenGL ES" FORCE)
     endif()
 
+    # SDL builds a path to the NDK's cpu-features out of ANDROID_NDK. newer
+    # toolchain files only set CMAKE_ANDROID_NDK, leaving that empty, so the
+    # path starts at the filesystem root and the source is never found.
+    if (ANDROID AND NOT ANDROID_NDK)
+      if (CMAKE_ANDROID_NDK)
+        set(ANDROID_NDK "${CMAKE_ANDROID_NDK}")
+      elseif (DEFINED ENV{ANDROID_NDK_HOME})
+        set(ANDROID_NDK "$ENV{ANDROID_NDK_HOME}")
+      elseif (DEFINED ENV{ANDROID_NDK_ROOT})
+        set(ANDROID_NDK "$ENV{ANDROID_NDK_ROOT}")
+      endif()
+      if (ANDROID_NDK)
+        message(STATUS "filled in ANDROID_NDK as ${ANDROID_NDK}")
+      else()
+        message(WARNING "ANDROID_NDK is not set and could not be worked out; SDL will fail to find cpu-features.c")
+      endif()
+    endif()
+
     add_subdirectory(extern/SDL EXCLUDE_FROM_ALL)
     list(APPEND DEPENDENCIES_DEFINES HAVE_SDL2)
     list(APPEND DEPENDENCIES_INCLUDE_DIRS extern/SDL/include)
