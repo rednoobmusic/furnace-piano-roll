@@ -18,6 +18,7 @@
  */
 
 #include "fileOpsCommon.h"
+#include <memory>
 
 struct PatToWrite {
   unsigned short subsong, chan, pat;
@@ -639,7 +640,10 @@ bool DivEngine::loadFur(unsigned char* file, size_t len, int variantID) {
   warnings="";
 
   try {
-    DivSong ds;
+    // a whole song is far more than the stack can hold on some platforms,
+    // where the frame overflows before the file has even been read
+    std::unique_ptr<DivSong> dsPtr(new DivSong);
+    DivSong& ds=*dsPtr;
     DivSubSong* subSong=ds.subsong[0];
 
     /// HEADER
