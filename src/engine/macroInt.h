@@ -24,6 +24,11 @@
 
 #include "instrument.h"
 
+// a six operator instrument registers 22 channel wide macros and 20 per
+// operator, so the run list has to hold 142. sized to the byte macroType
+// range so it does not need revisiting if the operator count grows again.
+#define DIV_MAX_MACRO_LIST 256
+
 class DivEngine;
 
 /**
@@ -119,9 +124,9 @@ class DivMacroInt {
   // the related instrument.
   DivInstrument* ins;
   // list of macros to run. populated during note on.
-  DivMacroStruct* macroList[128];
+  DivMacroStruct* macroList[DIV_MAX_MACRO_LIST];
   // sources of macros to run.
-  DivInstrumentMacro* macroSource[128];
+  DivInstrumentMacro* macroSource[DIV_MAX_MACRO_LIST];
   // number of macros to process.
   size_t macroListLen;
   // the current "sub-tick". in low-latency mode, this counts how many engine ticks remain until the next song tick.
@@ -167,7 +172,7 @@ class DivMacroInt {
         vib(DIV_MACRO_OP_VIB),
         ws(DIV_MACRO_OP_WS),
         ksr(DIV_MACRO_OP_KSR) {}
-    } op[4];
+    } op[6];
 
     // state
     bool hasRelease;

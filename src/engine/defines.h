@@ -26,6 +26,9 @@
 #define DIV_MAX_PATTERNS 256
 #define DIV_MAX_CHIP_DEFS 256
 
+// .fur chip IDs are not limited to a byte
+#define DIV_MAX_CHIP_FILE_IDS 512
+
 // in-pattern
 #define DIV_MAX_ROWS 256
 #define DIV_MAX_COLS 32

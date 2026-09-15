@@ -49,3 +49,4 @@ src/asm/6502/nes/test.sym
 src/asm/spc700/*.o
 src/asm/spc700/furnace.spc
 src/asm/spc700/furnace.sym
+/furnace

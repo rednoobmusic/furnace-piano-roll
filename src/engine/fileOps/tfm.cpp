@@ -18,6 +18,7 @@
  */
 
 #include "fileOpsCommon.h"
+#include <memory>
 
 class TFMRLEReader;
 
@@ -546,7 +547,10 @@ bool DivEngine::loadTFMv1(unsigned char* file, size_t len) {
   TFMRLEReader reader=TFMRLEReader(file,len);
 
   try {
-    DivSong ds;
+    // a whole song is far more than the stack can hold on some platforms,
+    // where the frame overflows before the file has even been read
+    std::unique_ptr<DivSong> dsPtr(new DivSong);
+    DivSong& ds=*dsPtr;
     ds.version=DIV_VERSION_TFE;
     ds.systemName="Sega Genesis/Mega Drive or TurboSound FM";
     ds.subsong[0]->hz=50;
@@ -741,7 +745,10 @@ bool DivEngine::loadTFMv2(unsigned char* file, size_t len) {
   TFMRLEReader reader=TFMRLEReader(file,len);
 
   try {
-    DivSong ds;
+    // a whole song is far more than the stack can hold on some platforms,
+    // where the frame overflows before the file has even been read
+    std::unique_ptr<DivSong> dsPtr(new DivSong);
+    DivSong& ds=*dsPtr;
     ds.version=DIV_VERSION_TFE;
     ds.systemName="Sega Genesis/Mega Drive or TurboSound FM";
     ds.subsong[0]->hz=50;

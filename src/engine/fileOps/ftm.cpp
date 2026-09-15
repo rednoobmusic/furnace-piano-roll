@@ -26,6 +26,7 @@
 // - format code?
 
 #include "fileOpsCommon.h"
+#include <memory>
 
 #define CHECK_BLOCK_VERSION(x) \
   if (blockVersion>x) { \
@@ -431,7 +432,10 @@ bool DivEngine::loadFTM(unsigned char* file, size_t len, bool dnft, bool dnft_si
   SafeReader reader = SafeReader(file, len);
   warnings = "";
   try {
-    DivSong ds;
+    // a whole song is far more than the stack can hold on some platforms,
+    // where the frame overflows before the file has even been read
+    std::unique_ptr<DivSong> dsPtr(new DivSong);
+    DivSong& ds=*dsPtr;
     String blockName;
     unsigned int expansions = 0;
     unsigned int tchans = 0;

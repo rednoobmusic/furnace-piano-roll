@@ -495,9 +495,90 @@ size | description
   2  | sample to play
 ```
 
-# operator macro data (O1, O2, O3 and O4)
+# YAM10 data (YA)
 
-similar to macro data, but using these macro codes:
+```
+size | description
+-----|------------------------------------
+  1  | echo mix
+  1  | echo feedback
+  2  | echo delay (ms)
+ 22??| operator data... (6 entries)
+```
+
+operator data:
+
+```
+size | description
+-----|------------------------------------
+  1  | flags
+     | - bit 3: use wavetable
+     | - bit 2: KSR
+     | - bit 1: fixed pitch
+     | - bit 0: enabled
+  1  | waveform (0 to 74)
+  1  | total level (0-127)
+  1  | attack (0-31)
+  1  | decay (0-31)
+  1  | decay 2 (0-31)
+  1  | sustain level (0-15)
+  1  | release (0-15)
+  1  | rate scale (0-3)
+  1  | multiplier (0 is half)
+  1  | fine detune (cents, signed)
+  1  | detune (semitones, signed)
+  1  | feedback (0-7)
+  1  | output level (0-127)
+  1  | panning (0-255, 128 is center)
+  1  | modulation input (one bit per operator)
+  2  | fixed frequency
+     | - bits 10-12: block
+     | - bits 0-9: F-num
+     | - frequency is fnum*(2^block)/8 Hz
+  2  | phase reset period (engine ticks, 0 is off)
+  2  | wavetable to use when bit 3 of flags is set
+```
+
+# YAM10 DSP data (YD)
+
+the per-channel DSP chain. kept apart from the YA block so instruments
+written before it still load.
+
+```
+size | description
+-----|------------------------------------
+  4??| filter data... (3 entries)
+  1  | flags
+     | - bit 1: chorus enabled
+     | - bit 0: distortion enabled
+  1  | distortion gain
+  1  | distortion cutoff
+  1  | distortion level
+  1  | chorus mix
+  1  | chorus rate
+  1  | chorus depth
+  1  | chorus feedback
+  1  | chorus width
+```
+
+filter data:
+
+```
+size | description
+-----|------------------------------------
+  1  | enabled
+  1  | mode (0: low, 1: high, 2: band, 3: notch)
+  1  | cutoff
+  1  | resonance
+```
+
+# operator macro data (O1, O2, O3, O4, O5 and O6)
+
+similar to macro data, but using these macro codes.
+
+O5 and O6 are only written by chips with more than four operators.
+
+macro codes:
 
 - 0: AM
 - 1: AR

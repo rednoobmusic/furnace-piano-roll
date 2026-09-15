@@ -18,6 +18,7 @@
  */
 
 #include "fileOpsCommon.h"
+#include <memory>
 
 void readEnvelope(DivInstrument* ins, int env, unsigned char flags, unsigned char numPoints, unsigned char loopStart, unsigned char loopEnd, unsigned char susPoint, short* points) {
   if (numPoints>12) numPoints=12;
@@ -205,7 +206,10 @@ bool DivEngine::loadXM(unsigned char* file, size_t len) {
   memset(doesPanbrello,0,128*sizeof(bool));
 
   try {
-    DivSong ds;
+    // a whole song is far more than the stack can hold on some platforms,
+    // where the frame overflows before the file has even been read
+    std::unique_ptr<DivSong> dsPtr(new DivSong);
+    DivSong& ds=*dsPtr;
     ds.version=DIV_VERSION_XM;
     //ds.compatFlags.linearPitch=0;
     //ds.compatFlags.pitchMacroIsLinear=false;

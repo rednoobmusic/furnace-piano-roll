@@ -18,6 +18,7 @@
  */
 
 #include "fileOpsCommon.h"
+#include <memory>
 
 unsigned char fcXORTriangle[32]={
   0xc0, 0xc0, 0xd0, 0xd8, 0xe0, 0xe8, 0xf0, 0xf8, 0x00, 0xf8, 0xf0, 0xe8, 0xe0, 0xd8, 0xd0, 0xc8,
@@ -144,7 +145,10 @@ bool DivEngine::loadFC(unsigned char* file, size_t len) {
   } sample[10];
 
   try {
-    DivSong ds;
+    // a whole song is far more than the stack can hold on some platforms,
+    // where the frame overflows before the file has even been read
+    std::unique_ptr<DivSong> dsPtr(new DivSong);
+    DivSong& ds=*dsPtr;
     ds.tuning=436.0;
     ds.version=DIV_VERSION_FC;
     //ds.compatFlags.linearPitch=0;

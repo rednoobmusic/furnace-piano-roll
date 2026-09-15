@@ -492,8 +492,8 @@ class DivEngine {
   std::vector<DivEffectContainer> effectInst;
   std::vector<int> curChanMask;
   static DivSysDef* sysDefs[DIV_MAX_CHIP_DEFS];
-  static DivSystem sysFileMapFur[DIV_MAX_CHIP_DEFS];
-  static DivSystem sysFileMapDMF[DIV_MAX_CHIP_DEFS];
+  static DivSystem sysFileMapFur[DIV_MAX_CHIP_FILE_IDS];
+  static DivSystem sysFileMapDMF[DIV_MAX_CHIP_FILE_IDS];
   static DivROMExportDef* romExportDefs[DIV_ROM_MAX];
 
   DivCSPlayer* cmdStreamInt;
@@ -756,8 +756,8 @@ class DivEngine {
     }
 
     // get system IDs
-    static DivSystem systemFromFileFur(unsigned char val);
-    static unsigned char systemToFileFur(DivSystem val);
+    static DivSystem systemFromFileFur(unsigned short val);
+    static unsigned short systemToFileFur(DivSystem val);
     static DivSystem systemFromFileDMF(unsigned char val);
     static unsigned char systemToFileDMF(DivSystem val);
 
@@ -1577,7 +1577,7 @@ class DivEngine {
       memset(chipPeak,0,DIV_MAX_CHIPS*DIV_MAX_OUTPUTS*sizeof(float));
       memset(filePlayerBuf,0,DIV_MAX_OUTPUTS*sizeof(float));
 
-      for (int i=0; i<DIV_MAX_CHIP_DEFS; i++) {
+      for (int i=0; i<DIV_MAX_CHIP_FILE_IDS; i++) {
         sysFileMapFur[i]=DIV_SYSTEM_NULL;
         sysFileMapDMF[i]=DIV_SYSTEM_NULL;
       }

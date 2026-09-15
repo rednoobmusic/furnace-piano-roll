@@ -246,3 +246,4 @@ this tab appears for Generic PCM DAC, Amiga and SNES.
 ![sample tab](sample-map.png)
 
 see the [Generic Sample section](sample.md) for more information.
+- [YAM10](yam10.md)

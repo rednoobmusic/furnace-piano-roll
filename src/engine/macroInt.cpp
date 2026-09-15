@@ -313,6 +313,7 @@ void DivMacroInt::next() {
 #define CONSIDER(x,y) \
   case y: \
     x.masked=enabled; \
+    if (!x.masked) x.has=x.actualHad; \
     break;
 
 #define CONSIDER_OP(oi,o) \
@@ -458,7 +459,7 @@ void DivMacroInt::setEngine(DivEngine* eng) {
 }
 
 #define ADD_MACRO(m,s) \
-  if (!m.masked) { \
+  if (!m.masked && macroListLen<DIV_MAX_MACRO_LIST) { \
     macroList[macroListLen]=&m; \
     macroSource[macroListLen++]=&s; \
   }
@@ -547,7 +548,7 @@ void DivMacroInt::init(DivInstrument* which) {
   }
 
   // prepare FM operator macros
-  for (int i=0; i<4; i++) {
+  for (int i=0; i<6; i++) {
     DivInstrumentSTD::OpMacro& m=ins->std.opMacros[i];
     IntOp& o=op[i];
     if (m.amMacro.len>0) {
@@ -638,7 +639,8 @@ void DivMacroInt::notifyInsDeletion(DivInstrument* which) {
 
 DivMacroStruct* DivMacroInt::structByType(unsigned char type) {
   if (type>=0x20) {
-    unsigned char o=((type>>5)-1)&3;
+    unsigned char o=(type>>5)-1;
+    if (o>=6) return NULL;
     switch (type&0x1f) {
       CONSIDER(op[o].am,DIV_MACRO_OP_AM)
       CONSIDER(op[o].ar,DIV_MACRO_OP_AR)

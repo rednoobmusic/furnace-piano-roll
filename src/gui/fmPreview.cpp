@@ -439,6 +439,7 @@ void FurnaceGUI::renderFMPreview(const DivInstrument* ins, int pos) {
       break;
     case DIV_INS_ESFM:
       renderFMPreviewESFM(ins->fm,ins->esfm,pos);
+      break;
     default:
       break;
   }

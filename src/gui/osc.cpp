@@ -113,9 +113,11 @@ void FurnaceGUI::readOsc() {
   }
 
   if (oscValuesAverage==NULL) {
-    oscValuesAverage=new float[2048];
+    // the same 2048 plus 16 the per channel buffers get, since the loop below
+    // fills oscWidth+16 of them and oscWidth itself reaches 2048
+    oscValuesAverage=new float[2064];
   }
-  memset(oscValuesAverage,0,2048*sizeof(float));
+  memset(oscValuesAverage,0,2064*sizeof(float));
   for (int i=0; i<oscWidth+16; i++) {
     float avg=0;
     for (int j=0; j<e->getAudioDescGot().outChans; j++) {

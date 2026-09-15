@@ -247,5 +247,10 @@ void initSystemPresetsFM(std::vector<FurnaceGUISysCategory>& sysCategories) {
         CH(DIV_SYSTEM_OPL4_DRUMS, 1.0f, 0, "")
       }
     );
+  ENTRY(
+    "YAM10", {
+      CH(DIV_SYSTEM_YAM10, 1.0f, 0, "")
+    }
+  );
   CATEGORY_END;
 }

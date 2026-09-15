@@ -597,7 +597,13 @@ void DivEngine::createNew(const char* description, String sysName, bool inBase64
   BUSY_BEGIN;
   saveLock.lock();
   song.unload();
-  song=DivSong();
+  {
+    // DivSong is close to a megabyte; a temporary of one does not fit on a
+    // thread stack, so it is built on the heap instead
+    DivSong* blank=new DivSong;
+    song=*blank;
+    delete blank;
+  }
   changeSong(0);
   if (description!=NULL) {
     initSongWithDesc(description,inBase64);
@@ -625,7 +631,13 @@ void DivEngine::createNewFromDefaults() {
   BUSY_BEGIN;
   saveLock.lock();
   song.unload();
-  song=DivSong();
+  {
+    // DivSong is close to a megabyte; a temporary of one does not fit on a
+    // thread stack, so it is built on the heap instead
+    DivSong* blank=new DivSong;
+    song=*blank;
+    delete blank;
+  }
   changeSong(0);
 
   String preset=getConfString("initialSys2","");

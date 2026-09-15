@@ -24,14 +24,16 @@
 #include "../ta-log.h"
 
 DivSysDef* DivEngine::sysDefs[DIV_MAX_CHIP_DEFS];
-DivSystem DivEngine::sysFileMapFur[DIV_MAX_CHIP_DEFS];
-DivSystem DivEngine::sysFileMapDMF[DIV_MAX_CHIP_DEFS];
+DivSystem DivEngine::sysFileMapFur[DIV_MAX_CHIP_FILE_IDS];
+DivSystem DivEngine::sysFileMapDMF[DIV_MAX_CHIP_FILE_IDS];
 
-DivSystem DivEngine::systemFromFileFur(unsigned char val) {
+DivSystem DivEngine::systemFromFileFur(unsigned short val) {
+  // the file hands us a raw 16 bit id and the map holds DIV_MAX_CHIP_FILE_IDS
+  if (val>=DIV_MAX_CHIP_FILE_IDS) return DIV_SYSTEM_NULL;
   return sysFileMapFur[val];
 }
 
-unsigned char DivEngine::systemToFileFur(DivSystem val) {
+unsigned short DivEngine::systemToFileFur(DivSystem val) {
   if (sysDefs[val]==NULL) return 0;
   return sysDefs[val]->id;
 }
@@ -2781,6 +2783,151 @@ void DivEngine::registerSystems() {
     _("this is a system designed for testing purposes."),
     DivChanDefFunc(stockChanDef<DIV_CH_NOISE,DIV_INS_STD>)
   );
+    // six operators, so the per operator blocks run to six rather than four
+    EffectHandlerMap YAM10EffectHandlerMap={
+      {0x11, {DIV_CMD_FM_FB, _("11xy: Set feedback (x: operator from 1 to 6 (0 for all ops); y: feedback)"), effectOpVal<6>, effectValAnd<7>}},
+      {0x12, {DIV_CMD_FM_TL, _("12xx: Set level of operator 1 (0 highest, 7F lowest)"), constVal<0>, effectVal}},
+      {0x13, {DIV_CMD_FM_TL, _("13xx: Set level of operator 2 (0 highest, 7F lowest)"), constVal<1>, effectVal}},
+      {0x14, {DIV_CMD_FM_TL, _("14xx: Set level of operator 3 (0 highest, 7F lowest)"), constVal<2>, effectVal}},
+      {0x15, {DIV_CMD_FM_TL, _("15xx: Set level of operator 4 (0 highest, 7F lowest)"), constVal<3>, effectVal}},
+      {0x16, {DIV_CMD_FM_TL, _("16xx: Set level of operator 5 (0 highest, 7F lowest)"), constVal<4>, effectVal}},
+      {0x17, {DIV_CMD_FM_TL, _("17xx: Set level of operator 6 (0 highest, 7F lowest)"), constVal<5>, effectVal}},
+      {0x18, {DIV_CMD_FM_TL, _("18xx: Set level of all operators (0 highest, 7F lowest)"), constVal<-1>, effectVal}},
+      {0x19, {DIV_CMD_FM_AR, _("19xx: Set attack of all operators (0 to 1F)"), constVal<-1>, effectValAnd<31>}},
+      {0x1a, {DIV_CMD_FM_AR, _("1Axx: Set attack of operator 1 (0 to 1F)"), constVal<0>, effectValAnd<31>}},
+      {0x1b, {DIV_CMD_FM_AR, _("1Bxx: Set attack of operator 2 (0 to 1F)"), constVal<1>, effectValAnd<31>}},
+      {0x1c, {DIV_CMD_FM_AR, _("1Cxx: Set attack of operator 3 (0 to 1F)"), constVal<2>, effectValAnd<31>}},
+      {0x1d, {DIV_CMD_FM_AR, _("1Dxx: Set attack of operator 4 (0 to 1F)"), constVal<3>, effectValAnd<31>}},
+      {0x1e, {DIV_CMD_FM_AR, _("1Exx: Set attack of operator 5 (0 to 1F)"), constVal<4>, effectValAnd<31>}},
+      {0x1f, {DIV_CMD_FM_AR, _("1Fxx: Set attack of operator 6 (0 to 1F)"), constVal<5>, effectValAnd<31>}},
+      {0x20, {DIV_CMD_FM_DR, _("20xx: Set decay of operator 1 (0 to 1F)"), constVal<0>, effectValAnd<31>}},
+      {0x21, {DIV_CMD_FM_DR, _("21xx: Set decay of operator 2 (0 to 1F)"), constVal<1>, effectValAnd<31>}},
+      {0x22, {DIV_CMD_FM_DR, _("22xx: Set decay of operator 3 (0 to 1F)"), constVal<2>, effectValAnd<31>}},
+      {0x23, {DIV_CMD_FM_DR, _("23xx: Set decay of operator 4 (0 to 1F)"), constVal<3>, effectValAnd<31>}},
+      {0x24, {DIV_CMD_FM_DR, _("24xx: Set decay of operator 5 (0 to 1F)"), constVal<4>, effectValAnd<31>}},
+      {0x25, {DIV_CMD_FM_DR, _("25xx: Set decay of operator 6 (0 to 1F)"), constVal<5>, effectValAnd<31>}},
+      {0x26, {DIV_CMD_FM_DR, _("26xx: Set decay of all operators (0 to 1F)"), constVal<-1>, effectValAnd<31>}},
+      {0x27, {DIV_CMD_FM_D2R, _("27xx: Set decay 2 of operator 1 (0 to 1F)"), constVal<0>, effectValAnd<31>}},
+      {0x28, {DIV_CMD_FM_D2R, _("28xx: Set decay 2 of operator 2 (0 to 1F)"), constVal<1>, effectValAnd<31>}},
+      {0x29, {DIV_CMD_FM_D2R, _("29xx: Set decay 2 of operator 3 (0 to 1F)"), constVal<2>, effectValAnd<31>}},
+      {0x2a, {DIV_CMD_FM_D2R, _("2Axx: Set decay 2 of operator 4 (0 to 1F)"), constVal<3>, effectValAnd<31>}},
+      {0x2b, {DIV_CMD_FM_D2R, _("2Bxx: Set decay 2 of operator 5 (0 to 1F)"), constVal<4>, effectValAnd<31>}},
+      {0x2c, {DIV_CMD_FM_D2R, _("2Cxx: Set decay 2 of operator 6 (0 to 1F)"), constVal<5>, effectValAnd<31>}},
+      {0x2d, {DIV_CMD_FM_D2R, _("2Dxx: Set decay 2 of all operators (0 to 1F)"), constVal<-1>, effectValAnd<31>}},
+      {0x2e, {DIV_CMD_FM_DT, _("2Exx: Set detune of operator 1 in semitones (40 is center)"), constVal<0>, effectVal}},
+      {0x2f, {DIV_CMD_FM_DT, _("2Fxx: Set detune of operator 2 in semitones (40 is center)"), constVal<1>, effectVal}},
+      {0x30, {DIV_CMD_FM_DT, _("30xx: Set detune of operator 3 in semitones (40 is center)"), constVal<2>, effectVal}},
+      {0x31, {DIV_CMD_FM_DT, _("31xx: Set detune of operator 4 in semitones (40 is center)"), constVal<3>, effectVal}},
+      {0x32, {DIV_CMD_FM_DT, _("32xx: Set detune of operator 5 in semitones (40 is center)"), constVal<4>, effectVal}},
+      {0x33, {DIV_CMD_FM_DT, _("33xx: Set detune of operator 6 in semitones (40 is center)"), constVal<5>, effectVal}},
+      {0x34, {DIV_CMD_FM_FINE, _("34xx: Set fine detune of all operators in cents (40 is center)"), constVal<-1>, effectVal}},
+      {0x50, {DIV_CMD_FM_SL, _("50xy: Set sustain level (x: operator from 1 to 6 (0 for all ops); y: sustain)"), effectOpVal<6>, effectValAnd<15>}},
+      {0x51, {DIV_CMD_FM_RR, _("51xy: Set release (x: operator from 1 to 6 (0 for all ops); y: release)"), effectOpVal<6>, effectValAnd<15>}},
+      {0x52, {DIV_CMD_FM_MULT, _("52xy: Set multiplier (x: operator from 1 to 6; y: multiplier)"), effectOpValNoZero<6>, effectValAnd<15>}},
+      {0x53, {DIV_CMD_FM_RS, _("53xy: Set envelope scale (x: operator from 1 to 6 (0 for all ops); y: scale from 0 to 3)"), effectOpVal<6>, effectValAnd<3>}},
+      {0x54, {DIV_CMD_FM_KSR, _("54xy: Set key scale rate (x: operator from 1 to 6 (0 for all ops); y: 0 or 1)"), effectOpVal<6>, effectValAnd<1>}},
+      {0x55, {DIV_CMD_FM_WS, _("55xy: Set waveform (x: operator from 1 to 6 (0 for all ops); y: waveform from 0 to F)"), effectOpVal<6>, effectValAnd<15>}},
+      {0x60, {DIV_CMD_FM_OPMASK, _("60xx: Set operator mask (bits 0 to 5)")}},
+      {0x44, {DIV_CMD_YAM10_FILTER_CUTOFF, _("44xx: Set filter 1 cutoff"), constVal<0>, effectVal}},
+      {0x45, {DIV_CMD_YAM10_FILTER_RES, _("45xx: Set filter 1 resonance"), constVal<0>, effectVal}},
+      {0x46, {DIV_CMD_YAM10_FILTER_CUTOFF, _("46xx: Set filter 2 cutoff"), constVal<1>, effectVal}},
+      {0x47, {DIV_CMD_YAM10_FILTER_RES, _("47xx: Set filter 2 resonance"), constVal<1>, effectVal}},
+      {0x48, {DIV_CMD_YAM10_FILTER_CUTOFF, _("48xx: Set filter 3 cutoff"), constVal<2>, effectVal}},
+      {0x49, {DIV_CMD_YAM10_FILTER_RES, _("49xx: Set filter 3 resonance"), constVal<2>, effectVal}},
+      {0x4a, {DIV_CMD_YAM10_FILTER_MODE, _("4Axy: Set filter mode (x: filter from 1 to 3; y: 0 low, 1 high, 2 band, 3 notch)"), effectOpValNoZero<3>, effectValAnd<3>}},
+      {0x4b, {DIV_CMD_YAM10_FILTER_ENABLE, _("4Bxy: Switch filter on or off (x: filter from 1 to 3; y: 0 or 1)"), effectOpValNoZero<3>, effectValAnd<1>}},
+      {0x4c, {DIV_CMD_YAM10_DIST_GAIN, _("4Cxx: Set distortion gain (0 to 7F)")}},
+      {0x4d, {DIV_CMD_YAM10_DIST_LEVEL, _("4Dxx: Set distortion level (0 to 7F)")}},
+      {0x4e, {DIV_CMD_YAM10_CHORUS_MIX, _("4Exx: Set chorus mix (0 to 7F)")}},
+      {0x4f, {DIV_CMD_YAM10_CHORUS_RATE, _("4Fxx: Set chorus rate (0 to 7F)")}},
+      {0xb3, {DIV_CMD_YAM10_CHORUS_DEPTH, _("B3xx: Set chorus depth (0 to 7F)")}},
+      {0xb4, {DIV_CMD_YAM10_ECHO_MIX, _("B4xx: Set echo mix (0 to 7F)")}},
+      {0xb5, {DIV_CMD_YAM10_ECHO_FB, _("B5xx: Set echo feedback (0 to 7F)")}},
+      {0xb6, {DIV_CMD_YAM10_REVERB_MIX, _("B6xx: Set reverb mix (0 to 7F)")}},
+      {0xb7, {DIV_CMD_YAM10_REVERB_SEND, _("B7xx: Set reverb send (0 to 7F)")}},
+      {0xb8, {DIV_CMD_YAM10_REVERB_DECAY, _("B8xx: Set reverb decay (0 to 7F)")}},
+      {0xb9, {DIV_CMD_YAM10_REVERB_EARLY, _("B9xx: Set reverb early reflections (0 to 7F)")}},
+      {0xba, {DIV_CMD_YAM10_REVERB_DIFF, _("BAxx: Set reverb diffusion (0 to 7F)")}},
+      {0xbb, {DIV_CMD_YAM10_REVERB_SIZE, _("BBxx: Set reverb size (0 to 7F)")}},
+      {0xbc, {DIV_CMD_YAM10_REVERB_DAMP, _("BCxx: Set reverb damping (0 to 7F)")}},
+      {0xbd, {DIV_CMD_YAM10_REVERB_EN, _("BDxx: Switch reverb on (1) or off (0)")}},
+      {0xa0, {DIV_CMD_YAM10_COMP_THR, _("A0xx: Set compressor threshold (0 to 7F)")}},
+      {0xa1, {DIV_CMD_YAM10_COMP_DOWN, _("A1xx: Set compressor down ratio (0 to 7F)")}},
+      {0xa2, {DIV_CMD_YAM10_COMP_UP, _("A2xx: Set compressor up ratio (0 to 7F)")}},
+      {0xa3, {DIV_CMD_YAM10_COMP_ATK, _("A3xx: Set compressor attack (0 to 7F)")}},
+      {0xa4, {DIV_CMD_YAM10_COMP_DEC, _("A4xx: Set compressor decay (0 to 7F)")}},
+      {0xa5, {DIV_CMD_YAM10_COMP_XLO, _("A5xx: Set compressor low to mid crossover")}},
+      {0xa6, {DIV_CMD_YAM10_COMP_XHI, _("A6xx: Set compressor mid to high crossover")}},
+      {0xa7, {DIV_CMD_YAM10_COMP_GLO, _("A7xx: Set compressor low band level (80 is flat)")}},
+      {0xa8, {DIV_CMD_YAM10_COMP_GMID, _("A8xx: Set compressor mid band level (80 is flat)")}},
+      {0xa9, {DIV_CMD_YAM10_COMP_GHI, _("A9xx: Set compressor high band level (80 is flat)")}},
+      {0xaa, {DIV_CMD_YAM10_COMP_OUT, _("AAxx: Set compressor output (0 to 7F, 40 is unity)")}},
+      {0xab, {DIV_CMD_YAM10_COMP_EN, _("ABxx: Switch the compressor on (1) or off (0)")}},
+      {0xac, {DIV_CMD_YAM10_EQ_EN, _("ACxx: Switch the EQ on (1) or off (0)")}},
+      {0x5b, {DIV_CMD_YAM10_PHASE_INV, _("5Bxx: Invert phase. bit 0 is left, bit 1 is right")}},
+      {0x35, {DIV_CMD_YAM10_DIST_CUTOFF, _("35xx: Set the cutoff of the high pass before the clipper")}},
+      {0x36, {DIV_CMD_YAM10_DIST_EN, _("36xx: Switch distortion on (1) or off (0)")}},
+      {0x37, {DIV_CMD_YAM10_CHORUS_EN, _("37xx: Switch chorus on (1) or off (0)")}},
+      {0x38, {DIV_CMD_YAM10_CHORUS_FB, _("38xx: Set chorus feedback (0 to 7F)")}},
+      {0x39, {DIV_CMD_YAM10_CHORUS_WIDTH, _("39xx: Set chorus width (0 to FF)")}},
+      {0x3a, {DIV_CMD_YAM10_ECHO_DELAY, _("3Axx: Set echo delay, 4 ms a step")}},
+      {0x61, {DIV_CMD_YAM10_OP_OUTLVL, _("61xx: Set output level of operator 1"), constVal<0>, effectVal}},
+      {0x62, {DIV_CMD_YAM10_OP_OUTLVL, _("62xx: Set output level of operator 2"), constVal<1>, effectVal}},
+      {0x63, {DIV_CMD_YAM10_OP_OUTLVL, _("63xx: Set output level of operator 3"), constVal<2>, effectVal}},
+      {0x64, {DIV_CMD_YAM10_OP_OUTLVL, _("64xx: Set output level of operator 4"), constVal<3>, effectVal}},
+      {0x65, {DIV_CMD_YAM10_OP_OUTLVL, _("65xx: Set output level of operator 5"), constVal<4>, effectVal}},
+      {0x66, {DIV_CMD_YAM10_OP_OUTLVL, _("66xx: Set output level of operator 6"), constVal<5>, effectVal}},
+      {0x67, {DIV_CMD_YAM10_OP_OUTLVL, _("67xx: Set output level of all operators"), constVal<-1>, effectVal}},
+      {0x68, {DIV_CMD_YAM10_OP_PAN, _("68xx: Set panning of operator 1, 80 is centre"), constVal<0>, effectVal}},
+      {0x69, {DIV_CMD_YAM10_OP_PAN, _("69xx: Set panning of operator 2, 80 is centre"), constVal<1>, effectVal}},
+      {0x6a, {DIV_CMD_YAM10_OP_PAN, _("6Axx: Set panning of operator 3, 80 is centre"), constVal<2>, effectVal}},
+      {0x6b, {DIV_CMD_YAM10_OP_PAN, _("6Bxx: Set panning of operator 4, 80 is centre"), constVal<3>, effectVal}},
+      {0x6c, {DIV_CMD_YAM10_OP_PAN, _("6Cxx: Set panning of operator 5, 80 is centre"), constVal<4>, effectVal}},
+      {0x6d, {DIV_CMD_YAM10_OP_PAN, _("6Dxx: Set panning of operator 6, 80 is centre"), constVal<5>, effectVal}},
+      {0x6e, {DIV_CMD_YAM10_OP_PAN, _("6Exx: Set panning of all operators, 80 is centre"), constVal<-1>, effectVal}},
+      {0x70, {DIV_CMD_YAM10_OP_MODIN, _("70xx: Set modulation input of operator 1, bits 0 to 5"), constVal<0>, effectVal}},
+      {0x71, {DIV_CMD_YAM10_OP_MODIN, _("71xx: Set modulation input of operator 2, bits 0 to 5"), constVal<1>, effectVal}},
+      {0x72, {DIV_CMD_YAM10_OP_MODIN, _("72xx: Set modulation input of operator 3, bits 0 to 5"), constVal<2>, effectVal}},
+      {0x73, {DIV_CMD_YAM10_OP_MODIN, _("73xx: Set modulation input of operator 4, bits 0 to 5"), constVal<3>, effectVal}},
+      {0x74, {DIV_CMD_YAM10_OP_MODIN, _("74xx: Set modulation input of operator 5, bits 0 to 5"), constVal<4>, effectVal}},
+      {0x75, {DIV_CMD_YAM10_OP_MODIN, _("75xx: Set modulation input of operator 6, bits 0 to 5"), constVal<5>, effectVal}},
+      {0x76, {DIV_CMD_YAM10_OP_PHRESET, _("76xx: Set phase reset of operator 1 in ticks, 0 is off"), constVal<0>, effectVal}},
+      {0x77, {DIV_CMD_YAM10_OP_PHRESET, _("77xx: Set phase reset of operator 2 in ticks, 0 is off"), constVal<1>, effectVal}},
+      {0x78, {DIV_CMD_YAM10_OP_PHRESET, _("78xx: Set phase reset of operator 3 in ticks, 0 is off"), constVal<2>, effectVal}},
+      {0x79, {DIV_CMD_YAM10_OP_PHRESET, _("79xx: Set phase reset of operator 4 in ticks, 0 is off"), constVal<3>, effectVal}},
+      {0x7a, {DIV_CMD_YAM10_OP_PHRESET, _("7Axx: Set phase reset of operator 5 in ticks, 0 is off"), constVal<4>, effectVal}},
+      {0x7b, {DIV_CMD_YAM10_OP_PHRESET, _("7Bxx: Set phase reset of operator 6 in ticks, 0 is off"), constVal<5>, effectVal}},
+      {0x7c, {DIV_CMD_YAM10_OP_DELAY, _("7Cxy: Set the delay before an operator attacks (x: operator from 1 to 6 (0 for all ops); y: delay from 0 to 7)"), effectOpVal<6>, effectValAnd<7>}},
+      {0x5c, {DIV_CMD_YAM10_WS_HI, _("5Cxy: Set waveform 16 to 23 (x: operator from 1 to 6 (0 for all ops); y: waveform minus 16)"), effectOpVal<6>, effectValAnd<7>}},
+      {0x5d, {DIV_CMD_YAM10_WS_SEL, _("5Dxx: Pick the operator the next waveform effect addresses (0 for all ops, 1 to 6)")}},
+      {0x5e, {DIV_CMD_YAM10_WS_FULL, _("5Exx: Set the waveform of the picked operator, any of them")}},
+      {0xaf, {DIV_CMD_YAM10_EQ_SEL, _("AFxx: Pick the EQ band the next EQ effects address (0 to 7)")}},
+      {0x56, {DIV_CMD_YAM10_EQ_FREQ, _("56xx: Set the frequency of the picked EQ band")}},
+      {0x57, {DIV_CMD_YAM10_EQ_GAIN, _("57xx: Set the gain of the picked EQ band (80 is flat)")}},
+      {0x58, {DIV_CMD_YAM10_EQ_Q, _("58xx: Set the Q of the picked EQ band")}},
+      {0x59, {DIV_CMD_YAM10_EQ_TYPE, _("59xx: Set the shape of the picked EQ band (0 peak, 1 low shelf, 2 high shelf, 3 low pass, 4 high pass, 5 notch)")}},
+      {0x5a, {DIV_CMD_YAM10_EQ_ON, _("5Axx: Switch the picked EQ band on (1) or off (0)")}},
+    };
+
+    sysDefs[DIV_SYSTEM_YAM10]=new DivSysDef(
+      _("YAM10"), NULL, 0x102, 0, 10, 10, 10,
+      true, false, 0, false, 0, 0, 0,
+      _("a fictional 10-channel, 6-operator FM chip by rednoobmusic. free operator routing, feedback and a delay on any operator, 21 waveforms plus custom wavetables, per-operator panning, and a DSP chain on every channel: three multi-mode filters, distortion, chorus, reverb, a three band compressor, an EQ and echo."),
+      DivChanDefFunc({
+        DivChanDef(_("Channel 1"),"C1",DIV_CH_FM,DIV_INS_YAM10),
+        DivChanDef(_("Channel 2"),"C2",DIV_CH_FM,DIV_INS_YAM10),
+        DivChanDef(_("Channel 3"),"C3",DIV_CH_FM,DIV_INS_YAM10),
+        DivChanDef(_("Channel 4"),"C4",DIV_CH_FM,DIV_INS_YAM10),
+        DivChanDef(_("Channel 5"),"C5",DIV_CH_FM,DIV_INS_YAM10),
+        DivChanDef(_("Channel 6"),"C6",DIV_CH_FM,DIV_INS_YAM10),
+        DivChanDef(_("Channel 7"),"C7",DIV_CH_FM,DIV_INS_YAM10),
+        DivChanDef(_("Channel 8"),"C8",DIV_CH_FM,DIV_INS_YAM10),
+        DivChanDef(_("Channel 9"),"C9",DIV_CH_FM,DIV_INS_YAM10),
+        DivChanDef(_("Channel 10"),"CA",DIV_CH_FM,DIV_INS_YAM10)
+      }),
+      YAM10EffectHandlerMap
+    );
+
 
   for (int i=0; i<DIV_MAX_CHIP_DEFS; i++) {
     if (sysDefs[i]==NULL) continue;

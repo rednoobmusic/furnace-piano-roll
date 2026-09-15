@@ -4497,6 +4497,42 @@ void FurnaceGUI::pointUp(int x, int y, int button) {
   }
 }
 
+void FurnaceGUI::makeInsBlank(DivInstrument* ins) {
+  ins->fm.fb=0;
+  for (int i=0; i<4; i++) {
+    ins->fm.op[i]=DivInstrumentFM::Operator();
+    ins->fm.op[i].ar=31;
+    ins->fm.op[i].dr=31;
+    ins->fm.op[i].rr=15;
+    ins->fm.op[i].tl=127;
+    ins->fm.op[i].dt=3;
+
+    ins->esfm.op[i].ct=0;
+    ins->esfm.op[i].dt=0;
+    ins->esfm.op[i].modIn=0;
+    ins->esfm.op[i].outLvl=0;
+  }
+  // YAM10: every operator on but silent, except operator 6 which is a plain
+  // FM sine so a blank instrument still makes a sound
+  for (int i=0; i<6; i++) {
+    ins->yam10.op[i]=DivInstrumentYAM10::Operator();
+    ins->yam10.op[i].enable=true;
+    ins->yam10.op[i].ws=0;
+    ins->yam10.op[i].mult=1;
+    ins->yam10.op[i].ar=31;
+    ins->yam10.op[i].dr=31;
+    ins->yam10.op[i].rr=15;
+    ins->yam10.op[i].tl=127;
+    ins->yam10.op[i].outLvl=0;
+    ins->yam10.op[i].modIn=0;
+  }
+  ins->yam10.op[5].tl=0;
+  ins->yam10.op[5].outLvl=64;
+  ins->yam10.op[5].dr=0;
+  ins->yam10.op[5].rr=8;
+  ins->yam10.echoMix=0;
+}
+
 void FurnaceGUI::pointMotion(int x, int y, int xrel, int yrel) {
   if (selecting && (!mobileUI || mobilePatSel)) {
     // detect whether we have to scroll
@@ -7531,20 +7567,9 @@ bool FurnaceGUI::loop() {
             }
 
             if (settings.blankIns) {
-              e->song.ins[curIns]->fm.fb=0;
-              for (int i=0; i<4; i++) {
-                e->song.ins[curIns]->fm.op[i]=DivInstrumentFM::Operator();
-                e->song.ins[curIns]->fm.op[i].ar=31;
-                e->song.ins[curIns]->fm.op[i].dr=31;
-                e->song.ins[curIns]->fm.op[i].rr=15;
-                e->song.ins[curIns]->fm.op[i].tl=127;
-                e->song.ins[curIns]->fm.op[i].dt=3;
 
-            e->song.ins[curIns]->esfm.op[i].ct=0;
-            e->song.ins[curIns]->esfm.op[i].dt=0;
-            e->song.ins[curIns]->esfm.op[i].modIn=0;
-            e->song.ins[curIns]->esfm.op[i].outLvl=0;
-              }
+              makeInsBlank(e->song.ins[curIns]);
+
             }
 
             MARK_MODIFIED;
@@ -8001,13 +8026,8 @@ bool FurnaceGUI::loop() {
           ImGui::Separator();
           ImGui::Indent();
           if (ImGui::RadioButton(_("Base Tempo"),e->midiImportOptions.useBaseTempo)) e->midiImportOptions.useBaseTempo=true;
-          if (ImGui::RadioButton(_("Groove Approximation"),!e->midiImportOptions.useBaseTempo)) e->midiImportOptions.useBaseTempo=false;
+          if (ImGui::RadioButton(_("Virtual Tempo"),!e->midiImportOptions.useBaseTempo)) e->midiImportOptions.useBaseTempo=false;
           ImGui::Unindent();
-          if (e->midiImportOptions.useBaseTempo) {
-            ImGui::TextWrapped(_("Sets the song's tick rate from the MIDI's own BPM. Exact tempo, a flat speed, and sub-row timing carried in note delays, at the cost of an unusual tick rate."));
-          } else {
-            ImGui::TextWrapped(_("Keeps the tick rate at 60Hz and carries the tempo in the groove. Notes land on whole rows, so timing is coarser."));
-          }
 
           ImGui::Spacing();
           ImGui::PushFont(headFont);
@@ -9638,6 +9658,10 @@ bool FurnaceGUI::requestQuit() {
 }
 
 FurnaceGUI::FurnaceGUI():
+  yam10EQDrag(-1),
+  yam10EQBand(0),
+  yam10EQPopupBand(-1),
+  yam10EQPreviewRate(44100.0),
   e(NULL),
   renderBackend(GUI_BACKEND_SDL),
   rend(NULL),

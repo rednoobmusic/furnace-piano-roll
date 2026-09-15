@@ -122,6 +122,7 @@ this is the full list of chips that Furnace supports.
 - [X1-010](x1-010.md)
 - [Y8950, YM3526, YM3812, YMF262 and YMF278 (OPL)](opl.md)
 - [ESFM](esfm.md)
+- [YAM10](yam10.md)
 - [VRC7 and YM2413 (OPLL)](opll.md)
 - [YM2414 (OPZ)](opz.md)
 - [YM2151 (OPM)](ym2151.md)

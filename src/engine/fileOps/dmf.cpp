@@ -18,6 +18,7 @@
  */
 
 #include "fileOpsCommon.h"
+#include <memory>
 
 // known version numbers:
 // - 27: v1.1.7
@@ -93,7 +94,10 @@ bool DivEngine::loadDMF(unsigned char* file, size_t len) {
   SafeReader reader=SafeReader(file,len);
   warnings="";
   try {
-    DivSong ds;
+    // a whole song is far more than the stack can hold on some platforms,
+    // where the frame overflows before the file has even been read
+    std::unique_ptr<DivSong> dsPtr(new DivSong);
+    DivSong& ds=*dsPtr;
     unsigned char historicColIns[DIV_MAX_CHANS];
     for (int i=0; i<DIV_MAX_CHANS; i++) {
       historicColIns[i]=i;

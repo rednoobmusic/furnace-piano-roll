@@ -40,6 +40,7 @@
 #include "platform/ym2608ext.h"
 #include "platform/ym2610.h"
 #include "platform/ym2610ext.h"
+#include "platform/yam10.h"
 #include "platform/ym2610b.h"
 #include "platform/ym2610bext.h"
 #include "platform/ay.h"
@@ -371,6 +372,9 @@ void DivDispatchContainer::init(DivSystem sys, DivEngine* eng, int chanCount, do
         ((DivPlatformYM2610Ext*)dispatch)->setCombo(eng->getConfInt("opnbCore",1));
       }
       ((DivPlatformYM2610Ext*)dispatch)->setCSM(1);
+      break;
+    case DIV_SYSTEM_YAM10:
+      dispatch=new DivPlatformYAM10;
       break;
     case DIV_SYSTEM_YM2610B:
       dispatch=new DivPlatformYM2610B;

@@ -391,6 +391,7 @@ enum FurnaceGUIColors {
   GUI_COLOR_INSTR_UPD1771C,
   GUI_COLOR_INSTR_SID3,
   GUI_COLOR_INSTR_KLATTSCH,
+  GUI_COLOR_INSTR_YAM10,
   GUI_COLOR_INSTR_UNKNOWN,
 
   GUI_COLOR_CHANNEL_BG,
@@ -2829,7 +2830,12 @@ class FurnaceGUI {
   int macroLoopDragLen;
   bool macroLoopDragActive;
 
-  FurnaceGUIMacroEditState macroEditStateFM, macroEditStateOP[4], macroEditStateMacros;
+  // six, not four: YAM10 has six operators and indexes this by operator
+  FurnaceGUIMacroEditState macroEditStateFM, macroEditStateOP[6], macroEditStateMacros;
+  FurnaceGUIMacroEditState macroEditStateDSP;
+  // which YAM10 EQ node is being dragged, and which band the panel edits
+  int yam10EQDrag, yam10EQBand, yam10EQPopupBand;
+  double yam10EQPreviewRate;
 
   ImVec2 waveDragStart;
   ImVec2 waveDragAreaSize;
@@ -3352,6 +3358,13 @@ class FurnaceGUI {
   void drawPatternNew();
   void drawInsList(bool asChild=false);
   void drawInsEdit();
+  void makeInsBlank(DivInstrument* ins);
+  void drawYAM10Algorithm(DivInstrumentYAM10& y, const ImVec2& size);
+  void drawYAM10EQ(DivInstrumentYAM10& y, const ImVec2& size);
+  void drawInsYAM10(DivInstrument* ins);
+  void drawInsYAM10DSP(DivInstrument* ins);
+  void drawYAM10Waveform(unsigned char ws, bool custom, int waveIndex, unsigned char duty, const ImVec2& size);
+  bool drawYAM10WaveSelect(const char* id, unsigned char& ws, unsigned char duty);
   void drawInsSID3(DivInstrument* ins);
   void drawWaveList(bool asChild=false);
   void drawWaveEdit();

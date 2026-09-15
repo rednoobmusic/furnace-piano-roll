@@ -18,6 +18,7 @@
  */
 
 #include "fileOpsCommon.h"
+#include <memory>
 
 static void readSbiOpData(sbi_t& sbi, SafeReader& reader) {
   sbi.Mcharacteristics = reader.readC();
@@ -77,7 +78,10 @@ bool DivEngine::loadS3M(unsigned char* file, size_t len) {
   memset(doesPanbrello,0,32*sizeof(bool));
 
   try {
-    DivSong ds;
+    // a whole song is far more than the stack can hold on some platforms,
+    // where the frame overflows before the file has even been read
+    std::unique_ptr<DivSong> dsPtr(new DivSong);
+    DivSong& ds=*dsPtr;
     ds.version=DIV_VERSION_S3M;
     ds.compatFlags.linearPitch=0;
     ds.compatFlags.pitchMacroIsLinear=false;

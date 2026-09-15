@@ -875,6 +875,7 @@ src/engine/platform/ym2608.cpp
 src/engine/platform/ym2608ext.cpp
 src/engine/platform/ym2610.cpp
 src/engine/platform/ym2610ext.cpp
+src/engine/platform/yam10.cpp
 src/engine/platform/ym2610b.cpp
 src/engine/platform/ym2610bext.cpp
 src/engine/platform/ay.cpp

@@ -18,6 +18,7 @@
  */
 
 #include "fileOpsCommon.h"
+#include <memory>
 
 bool DivEngine::loadMod(unsigned char* file, size_t len) {
   struct InvalidHeaderException {};
@@ -38,7 +39,10 @@ bool DivEngine::loadMod(unsigned char* file, size_t len) {
   memset(fxUsage,0,DIV_MAX_CHANS*5*sizeof(bool));
 
   try {
-    DivSong ds;
+    // a whole song is far more than the stack can hold on some platforms,
+    // where the frame overflows before the file has even been read
+    std::unique_ptr<DivSong> dsPtr(new DivSong);
+    DivSong& ds=*dsPtr;
     ds.tuning=436.0;
     ds.version=DIV_VERSION_MOD;
     ds.compatFlags.linearPitch=0;

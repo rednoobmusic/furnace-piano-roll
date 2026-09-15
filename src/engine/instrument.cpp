@@ -1302,6 +1302,161 @@ void DivInstrument::writeFeatureGB(SafeWriter* w) {
   FEATURE_END;
 }
 
+bool DivInstrumentYAM10::Operator::operator==(const DivInstrumentYAM10::Operator& o) const {
+  return (
+    enable==o.enable && fixedMode==o.fixedMode && ksr==o.ksr &&
+    customWave==o.customWave && ws==o.ws && tl==o.tl &&
+    ar==o.ar && dr==o.dr && d2r==o.d2r && sl==o.sl && rr==o.rr &&
+    rs==o.rs && mult==o.mult && delay==o.delay && dtFine==o.dtFine && dtSemi==o.dtSemi &&
+    fb==o.fb && outLvl==o.outLvl && pan==o.pan && modIn==o.modIn &&
+    duty==o.duty && fixedFreq==o.fixedFreq && phaseReset==o.phaseReset &&
+    customWaveIndex==o.customWaveIndex
+  );
+}
+
+bool DivInstrumentYAM10::Filter::operator==(const DivInstrumentYAM10::Filter& o) const {
+  return enable==o.enable && mode==o.mode && cutoff==o.cutoff && res==o.res;
+}
+
+// out of line so the big comparison above stays readable
+bool DivInstrumentYAM10::eqBandsEqual(const DivInstrumentYAM10& o) const {
+  for (int i=0; i<8; i++) if (eqBand[i]!=o.eqBand[i]) return false;
+  return true;
+}
+
+bool DivInstrumentYAM10::operator==(const DivInstrumentYAM10& o) const {
+  for (int i=0; i<6; i++) if (op[i]!=o.op[i]) return false;
+  for (int i=0; i<3; i++) if (filter[i]!=o.filter[i]) return false;
+  return echoMix==o.echoMix && echoFeedback==o.echoFeedback && echoDelay==o.echoDelay &&
+         distEnable==o.distEnable && distGain==o.distGain && distCutoff==o.distCutoff &&
+         distLevel==o.distLevel && chorusEnable==o.chorusEnable && chorusMix==o.chorusMix &&
+         chorusRate==o.chorusRate && chorusDepth==o.chorusDepth &&
+         chorusFeedback==o.chorusFeedback && chorusWidth==o.chorusWidth &&
+         reverbMix==o.reverbMix && reverbSend==o.reverbSend && reverbDecay==o.reverbDecay &&
+         compEnable==o.compEnable && compThreshold==o.compThreshold &&
+         compRatio==o.compRatio && compMakeup==o.compMakeup &&
+         compAttack==o.compAttack && compDecay==o.compDecay &&
+         compUpRatio==o.compUpRatio &&
+         compLoMid==o.compLoMid && compMidHi==o.compMidHi &&
+         compLowGain==o.compLowGain && compMidGain==o.compMidGain &&
+         compHighGain==o.compHighGain &&
+         reverbEarly==o.reverbEarly && reverbDiffusion==o.reverbDiffusion &&
+         reverbSize==o.reverbSize && reverbDamp==o.reverbDamp &&
+         eqEnable==o.eqEnable && eqCount==o.eqCount &&
+         phaseInvL==o.phaseInvL && phaseInvR==o.phaseInvR &&
+         reverbEnable==o.reverbEnable && eqBandsEqual(o);
+}
+
+void DivInstrument::writeFeatureYD(SafeWriter* w) {
+  FEATURE_BEGIN("YD");
+
+  for (int i=0; i<3; i++) {
+    DivInstrumentYAM10::Filter& f=yam10.filter[i];
+    w->writeC(f.enable?1:0);
+    w->writeC(f.mode);
+    w->writeC(f.cutoff);
+    w->writeC(f.res);
+  }
+  w->writeC((yam10.distEnable?1:0)|(yam10.chorusEnable?2:0));
+  w->writeC(yam10.distGain);
+  w->writeC(yam10.distCutoff);
+  w->writeC(yam10.distLevel);
+  w->writeC(yam10.chorusMix);
+  w->writeC(yam10.chorusRate);
+  w->writeC(yam10.chorusDepth);
+  w->writeC(yam10.chorusFeedback);
+  w->writeC(yam10.chorusWidth);
+  // appended after the fact; older YD blocks simply stop here
+  w->writeC(yam10.reverbMix);
+  w->writeC(yam10.reverbSend);
+  w->writeC(yam10.reverbDecay);
+  w->writeC(yam10.compEnable?1:0);
+  w->writeC(yam10.compThreshold);
+  w->writeC(yam10.compRatio);
+  w->writeC(yam10.compMakeup);
+  // appended again; anything shorter than this simply keeps the defaults
+  w->writeC(yam10.compAttack);
+  w->writeC(yam10.compDecay);
+  // the first three bands keep their original slots so blocks written
+  // before the band count existed still line up
+  w->writeC((yam10.eqEnable?1:0)|(yam10.eqBand[0].on?2:0)|(yam10.eqBand[1].on?4:0)|
+            (yam10.eqBand[2].on?8:0)|(yam10.phaseInvL?16:0)|(yam10.phaseInvR?32:0));
+  for (int i=0; i<3; i++) {
+    w->writeC(yam10.eqBand[i].freq);
+    w->writeC(yam10.eqBand[i].gain);
+    w->writeC(yam10.eqBand[i].q);
+  }
+  // appended again; a block that stops short keeps the defaults
+  w->writeC(yam10.reverbEarly);
+  w->writeC(yam10.reverbDiffusion);
+  w->writeC(yam10.reverbSize);
+  w->writeC(yam10.reverbDamp);
+  w->writeC(0); // was a detector type; the slot stays so the layout holds
+  w->writeC(yam10.compUpRatio);
+  w->writeC(yam10.compLoMid);
+  w->writeC(yam10.compMidHi);
+  w->writeC(yam10.compLowGain);
+  w->writeC(yam10.compMidGain);
+  w->writeC(yam10.compHighGain);
+  w->writeC(yam10.eqBand[0].type);
+  w->writeC(yam10.eqBand[1].type);
+  w->writeC(yam10.eqBand[2].type);
+  // appended again: the band count, the reverb switch, and bands 4 to 8
+  w->writeC(yam10.eqCount);
+  w->writeC(yam10.reverbEnable?1:0);
+  // the first three have their own slots further up, so only the rest of
+  // the ones actually in use go here
+  for (int i=3; i<(int)yam10.eqCount && i<32; i++) {
+    w->writeC(yam10.eqBand[i].type);
+    w->writeC(yam10.eqBand[i].freq);
+    w->writeC(yam10.eqBand[i].gain);
+    w->writeC(yam10.eqBand[i].q);
+    w->writeC(yam10.eqBand[i].on?1:0);
+  }
+
+  FEATURE_END;
+}
+
+void DivInstrument::writeFeatureYA(SafeWriter* w) {
+  FEATURE_BEGIN("YA");
+
+  w->writeC(yam10.echoMix);
+  w->writeC(yam10.echoFeedback);
+  w->writeS(yam10.echoDelay);
+
+  for (int i=0; i<6; i++) {
+    DivInstrumentYAM10::Operator& o=yam10.op[i];
+    w->writeC(
+      (o.enable?1:0)|(o.fixedMode?2:0)|(o.ksr?4:0)|(o.customWave?8:0)
+    );
+    w->writeC(o.ws);
+    w->writeC(o.tl);
+    w->writeC(o.ar);
+    w->writeC(o.dr);
+    w->writeC(o.d2r);
+    w->writeC(o.sl);
+    w->writeC(o.rr);
+    w->writeC(o.rs);
+    w->writeC(o.mult);
+    w->writeC((unsigned char)o.dtFine);
+    w->writeC((unsigned char)o.dtSemi);
+    w->writeC(o.fb);
+    w->writeC(o.outLvl);
+    w->writeC(o.pan);
+    w->writeC(o.modIn);
+    w->writeS(o.fixedFreq);
+    w->writeS(o.phaseReset);
+    w->writeS(o.customWaveIndex);
+  }
+  // which waveform numbering this was written with
+  w->writeC(2);
+  // appended after that marker
+  for (int i=0; i<6; i++) w->writeC(yam10.op[i].delay);
+  for (int i=0; i<6; i++) w->writeC(yam10.op[i].duty);
+
+  FEATURE_END;
+}
+
 void DivInstrument::writeFeatureSM(SafeWriter* w) {
   FEATURE_BEGIN("SM");
 
@@ -1746,6 +1901,9 @@ void DivInstrument::writeFeatureKT(SafeWriter* w) {
   FEATURE_END;
 }
 
+// on-disk instrument type for YAM10, fixed so files interchange
+#define YAM10_INS_FILE_TYPE 87
+
 void DivInstrument::putInsData2(SafeWriter* w, bool fui, const DivSong* song, bool insName) {
   size_t blockStartSeek=0;
   size_t blockEndSeek=0;
@@ -1766,7 +1924,7 @@ void DivInstrument::putInsData2(SafeWriter* w, bool fui, const DivSong* song, bo
   }
 
   w->writeS(DIV_ENGINE_VERSION);
-  w->writeC(type);
+  w->writeC((type==DIV_INS_YAM10)?YAM10_INS_FILE_TYPE:type);
   w->writeC(0);
 
   // write features
@@ -1776,7 +1934,8 @@ void DivInstrument::putInsData2(SafeWriter* w, bool fui, const DivSong* song, bo
   bool feature64=false;
   bool featureGB=false;
   bool featureSM=false;
-  bool featureOx[4];
+  bool featureYA=false;
+  bool featureOx[6];
   bool featureLD=false;
   bool featureSN=false;
   bool featureN1=false;
@@ -1801,6 +1960,8 @@ void DivInstrument::putInsData2(SafeWriter* w, bool fui, const DivSong* song, bo
   featureOx[1]=false;
   featureOx[2]=false;
   featureOx[3]=false;
+  featureOx[4]=false;
+  featureOx[5]=false;
 
   // turn on base features if .fui
   if (fui) {
@@ -2037,6 +2198,9 @@ void DivInstrument::putInsData2(SafeWriter* w, bool fui, const DivSong* song, bo
         feature64=true;
         featureS2=true;
         break;
+      case DIV_INS_YAM10:
+        featureYA=true;
+        break;
       case DIV_INS_SID3:
         featureS3=true;
         checkForWL=true;
@@ -2109,6 +2273,12 @@ void DivInstrument::putInsData2(SafeWriter* w, bool fui, const DivSong* song, bo
     if (sid2!=defaultIns.sid2) {
       featureS2=true;
     }
+    // on the type, not just on the contents. the .fui path keys this off the
+    // type too, and without it a module drops the whole YAM10 instrument
+    // whenever its data happens to match the constructor defaults.
+    if (type==DIV_INS_YAM10 || yam10!=defaultIns.yam10) {
+      featureYA=true;
+    }
     if (sid3!=defaultIns.sid3) {
       featureS3=true;
     }
@@ -2155,9 +2325,10 @@ void DivInstrument::putInsData2(SafeWriter* w, bool fui, const DivSong* song, bo
     }
   }
 
-  if (featureFM || featureS3 || !fui) {
+  if (featureFM || featureS3 || featureYA || !fui) {
     // check FM macros
     int opCount=4;
+    if (type==DIV_INS_YAM10) opCount=6;
     bool storeExtendedAsWell=true;
     if (fui) {
       if (type==DIV_INS_OPLL) {
@@ -2215,10 +2386,14 @@ void DivInstrument::putInsData2(SafeWriter* w, bool fui, const DivSong* song, bo
   if (featureGB) {
     writeFeatureGB(w);
   }
+  if (featureYA) {
+    writeFeatureYA(w);
+    writeFeatureYD(w);
+  }
   if (featureSM) {
     writeFeatureSM(w);
   }
-  for (int i=0; i<4; i++) {
+  for (int i=0; i<6; i++) {
     if (featureOx[i]) {
       writeFeatureOx(w,i);
     }
@@ -2355,6 +2530,9 @@ void DivInstrument::readFeatureFM(SafeReader& reader, short version) {
   fm.op[3].enable=(opCount&128);
 
   opCount&=15;
+  // the writer only ever stores 2 or 4. a file saying more than fm.op holds
+  // would have us write operators off the end of the instrument.
+  if (opCount>4) opCount=4;
 
   unsigned char next=reader.readC();
   fm.alg=(next>>4)&7;
@@ -2646,6 +2824,166 @@ void DivInstrument::readFeatureGB(SafeReader& reader, short version) {
   for (int i=0; i<gb.hwSeqLen; i++) {
     gb.hwSeq[i].cmd=reader.readC();
     gb.hwSeq[i].data=reader.readS();
+  }
+
+  READ_FEAT_END;
+}
+
+void DivInstrument::readFeatureYD(SafeReader& reader, short version) {
+  READ_FEAT_BEGIN;
+
+  for (int i=0; i<3; i++) {
+    DivInstrumentYAM10::Filter& f=yam10.filter[i];
+    f.enable=reader.readC()&1;
+    f.mode=reader.readC();
+    f.cutoff=reader.readC();
+    f.res=reader.readC();
+  }
+  unsigned char flags=reader.readC();
+  yam10.distEnable=flags&1;
+  yam10.chorusEnable=flags&2;
+  yam10.distGain=reader.readC();
+  yam10.distCutoff=reader.readC();
+  yam10.distLevel=reader.readC();
+  yam10.chorusMix=reader.readC();
+  yam10.chorusRate=reader.readC();
+  yam10.chorusDepth=reader.readC();
+  yam10.chorusFeedback=reader.readC();
+  yam10.chorusWidth=reader.readC();
+  if (reader.tell()<endOfFeat) {
+    yam10.reverbMix=reader.readC();
+    yam10.reverbSend=reader.readC();
+    yam10.reverbDecay=reader.readC();
+    yam10.compEnable=reader.readC()&1;
+    yam10.compThreshold=reader.readC();
+    yam10.compRatio=reader.readC();
+    yam10.compMakeup=reader.readC();
+  }
+  if (reader.tell()<endOfFeat) {
+    yam10.compAttack=reader.readC();
+    yam10.compDecay=reader.readC();
+    unsigned char eqFlags=reader.readC();
+    yam10.eqEnable=eqFlags&1;
+    yam10.eqBand[0].on=eqFlags&2;
+    yam10.eqBand[1].on=eqFlags&4;
+    yam10.eqBand[2].on=eqFlags&8;
+    yam10.phaseInvL=eqFlags&16;
+    yam10.phaseInvR=eqFlags&32;
+    for (int i=0; i<3; i++) {
+      yam10.eqBand[i].freq=reader.readC();
+      yam10.eqBand[i].gain=reader.readC();
+      yam10.eqBand[i].q=reader.readC();
+    }
+    // a block that stops here was written when the EQ was three fixed
+    // bands, so that is what it gets
+    yam10.eqCount=3;
+  }
+  if (reader.tell()<endOfFeat) {
+    yam10.reverbEarly=reader.readC();
+    yam10.reverbDiffusion=reader.readC();
+    yam10.reverbSize=reader.readC();
+    yam10.reverbDamp=reader.readC();
+    reader.readC(); // see above
+    yam10.compUpRatio=reader.readC();
+    yam10.compLoMid=reader.readC();
+    yam10.compMidHi=reader.readC();
+    yam10.compLowGain=reader.readC();
+    yam10.compMidGain=reader.readC();
+    yam10.compHighGain=reader.readC();
+    yam10.eqBand[0].type=reader.readC();
+    yam10.eqBand[1].type=reader.readC();
+    yam10.eqBand[2].type=reader.readC();
+  }
+  if (reader.tell()<endOfFeat) {
+    yam10.eqCount=reader.readC();
+    if (yam10.eqCount>32) yam10.eqCount=32;
+    yam10.reverbEnable=reader.readC()&1;
+    // blocks written when the count was fixed carry five of these whatever
+    // the count says, so this stops at whichever runs out first
+    for (int i=3; i<(int)yam10.eqCount && i<32; i++) {
+      if (reader.tell()+5>endOfFeat) break;
+      yam10.eqBand[i].type=reader.readC();
+      yam10.eqBand[i].freq=reader.readC();
+      yam10.eqBand[i].gain=reader.readC();
+      yam10.eqBand[i].q=reader.readC();
+      yam10.eqBand[i].on=reader.readC()&1;
+    }
+  }
+
+  READ_FEAT_END;
+}
+
+void DivInstrument::readFeatureYA(SafeReader& reader, short version) {
+  READ_FEAT_BEGIN;
+
+  yam10.echoMix=reader.readC();
+  yam10.echoFeedback=reader.readC();
+  yam10.echoDelay=reader.readS();
+
+  for (int i=0; i<6; i++) {
+    DivInstrumentYAM10::Operator& o=yam10.op[i];
+    unsigned char flags=reader.readC();
+    o.enable=flags&1;
+    o.fixedMode=flags&2;
+    o.ksr=flags&4;
+    o.customWave=flags&8;
+    o.ws=reader.readC();
+    o.tl=reader.readC();
+    o.ar=reader.readC();
+    o.dr=reader.readC();
+    o.d2r=reader.readC();
+    o.sl=reader.readC();
+    o.rr=reader.readC();
+    o.rs=reader.readC();
+    o.mult=reader.readC();
+    o.dtFine=(signed char)reader.readC();
+    o.dtSemi=(signed char)reader.readC();
+    o.fb=reader.readC();
+    o.outLvl=reader.readC();
+    o.pan=reader.readC();
+    o.modIn=reader.readC();
+    o.fixedFreq=reader.readS();
+    o.phaseReset=reader.readS();
+    o.customWaveIndex=reader.readS();
+  }
+  // the waveforms used to be numbered in the order they were added. a block
+  // that stops here predates the family grouping, so its numbers are moved
+  // across; a newer one carries a marker and is left alone.
+  if (reader.tell()>=endOfFeat) {
+    static const unsigned char yam10WaveOrder[24]={
+      0,1,2,3,4,5,19,20,17,7,12,18,6,21,23,22,8,9,10,11,13,14,15,16
+    };
+    for (int i=0; i<6; i++) {
+      if (yam10.op[i].ws<24) yam10.op[i].ws=yam10WaveOrder[yam10.op[i].ws];
+    }
+  } else {
+    unsigned char waveGen=reader.readC();
+    if (reader.tell()+6<=endOfFeat) {
+      for (int i=0; i<6; i++) yam10.op[i].delay=reader.readC();
+    }
+    // the pulse wave used to be fixed at 12.5%, so a block that stops here
+    // keeps the default that matches it
+    if (reader.tell()+6<=endOfFeat) {
+      for (int i=0; i<6; i++) yam10.op[i].duty=reader.readC();
+    }
+    // four of the 2600 waveforms turned out to be shapes the chip already
+    // had, so they went and the ones after them moved down. the three that
+    // were plain pulses become the pulse at the width they used to run at.
+    if (waveGen<2) {
+      for (int i=0; i<6; i++) {
+        switch (yam10.op[i].ws) {
+          case 75: yam10.op[i].ws=37; yam10.op[i].duty=128; break;
+          case 76: yam10.op[i].ws=71; break;
+          case 77: yam10.op[i].ws=37; yam10.op[i].duty=107; break;
+          case 78: yam10.op[i].ws=37; yam10.op[i].duty=121; break;
+          case 79: yam10.op[i].ws=75; break;
+          case 80: yam10.op[i].ws=76; break;
+          case 81: yam10.op[i].ws=77; break;
+          case 82: yam10.op[i].ws=78; break;
+          default: break;
+        }
+      }
+    }
   }
 
   READ_FEAT_END;
@@ -3417,6 +3755,7 @@ DivDataErrors DivInstrument::readInsDataNew(SafeReader& reader, short version, b
   reader.readS(); // format version. ignored.
 
   type=(DivInstrumentType)reader.readS();
+  if ((int)type==YAM10_INS_FILE_TYPE) type=DIV_INS_YAM10;
 
   // feature reading loop
   while ((int)reader.tell()<dataLen) {
@@ -3436,6 +3775,10 @@ DivDataErrors DivInstrument::readInsDataNew(SafeReader& reader, short version, b
       readFeature64(reader,volIsCutoff,version);
     } else if (memcmp(featCode,"GB",2)==0) { // Game Boy
       readFeatureGB(reader,version);
+    } else if (memcmp(featCode,"YA",2)==0) { // YAM10
+      readFeatureYA(reader,version);
+    } else if (memcmp(featCode,"YD",2)==0) { // YAM10 DSP
+      readFeatureYD(reader,version);
     } else if (memcmp(featCode,"SM",2)==0) { // sample
       readFeatureSM(reader,version);
     } else if (memcmp(featCode,"O1",2)==0) { // op1 macros
@@ -3446,6 +3789,10 @@ DivDataErrors DivInstrument::readInsDataNew(SafeReader& reader, short version, b
       readFeatureOx(reader,2,version);
     } else if (memcmp(featCode,"O4",2)==0) { // op4 macros
       readFeatureOx(reader,3,version);
+    } else if (memcmp(featCode,"O5",2)==0) { // op5 macros
+      readFeatureOx(reader,4,version);
+    } else if (memcmp(featCode,"O6",2)==0) { // op6 macros
+      readFeatureOx(reader,5,version);
     } else if (memcmp(featCode,"LD",2)==0) { // OPL drums
       readFeatureLD(reader,version);
     } else if (memcmp(featCode,"SN",2)==0) { // SNES
@@ -3540,6 +3887,7 @@ DivDataErrors DivInstrument::readInsDataOld(SafeReader &reader, short version) {
 
   reader.readS(); // format version. ignored.
   type=(DivInstrumentType)reader.readC();
+  if ((int)type==YAM10_INS_FILE_TYPE) type=DIV_INS_YAM10;
   reader.readC();
   name=reader.readString();
 

@@ -799,20 +799,7 @@ void FurnaceGUI::doAction(int what) {
         showError(_("too many instruments!"));
       } else {
         if (settings.blankIns) {
-          e->song.ins[curIns]->fm.fb=0;
-          for (int i=0; i<4; i++) {
-            e->song.ins[curIns]->fm.op[i]=DivInstrumentFM::Operator();
-            e->song.ins[curIns]->fm.op[i].ar=31;
-            e->song.ins[curIns]->fm.op[i].dr=31;
-            e->song.ins[curIns]->fm.op[i].rr=15;
-            e->song.ins[curIns]->fm.op[i].tl=127;
-            e->song.ins[curIns]->fm.op[i].dt=3;
-
-            e->song.ins[curIns]->esfm.op[i].ct=0;
-            e->song.ins[curIns]->esfm.op[i].dt=0;
-            e->song.ins[curIns]->esfm.op[i].modIn=0;
-            e->song.ins[curIns]->esfm.op[i].outLvl=0;
-          }
+          makeInsBlank(e->song.ins[curIns]);
         }
         wantScrollListIns=true;
         MARK_MODIFIED;

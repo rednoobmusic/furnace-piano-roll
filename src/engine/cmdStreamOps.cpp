@@ -1319,7 +1319,7 @@ SafeWriter* DivEngine::saveCommand(DivCSProgress* progress, DivCSOptions options
 
   int insPopularity[256];
   int volPopularity[256];
-  int cmdPopularity[256];
+  int cmdPopularity[DIV_CMD_MAX];
   int delayPopularity[256];
 
   int sortedInsPopularity[6];
@@ -1331,6 +1331,10 @@ SafeWriter* DivEngine::saveCommand(DivCSProgress* progress, DivCSOptions options
   unsigned char sortedCmd[4];
   unsigned char sortedDelay[16];
   
+  // the stream format carries a command in one byte, so anything above 255
+  // cannot be written. warn once rather than once per tick.
+  bool warnedWideCmd=false;
+
   SafeWriter* globalStream;
   SafeWriter* chanStream[DIV_MAX_CHANS];
   unsigned int chanStreamOff[DIV_MAX_CHANS];
@@ -1340,7 +1344,7 @@ SafeWriter* DivEngine::saveCommand(DivCSProgress* progress, DivCSOptions options
 
   memset(insPopularity,0,256*sizeof(int));
   memset(volPopularity,0,256*sizeof(int));
-  memset(cmdPopularity,0,256*sizeof(int));
+  memset(cmdPopularity,0,sizeof(cmdPopularity));
   memset(delayPopularity,0,256*sizeof(int));
   memset(chanStream,0,DIV_MAX_CHANS*sizeof(void*));
   memset(chanStreamOff,0,DIV_MAX_CHANS*sizeof(unsigned int));
@@ -1458,6 +1462,13 @@ SafeWriter* DivEngine::saveCommand(DivCSProgress* progress, DivCSOptions options
         case DIV_CMD_PRE_NOTE:
           break;
         default:
+          if (i.cmd>=256) {
+            if (!warnedWideCmd) {
+              warnedWideCmd=true;
+              logW("%s does not fit in the command stream format and was left out",cmdName[i.cmd]);
+            }
+            break;
+          }
           if (i.cmd==DIV_CMD_HINT_VOLUME) {
             volPopularity[i.value&0xff]++;
           } else if (i.cmd==DIV_CMD_INSTRUMENT) {

@@ -105,7 +105,7 @@ struct DivSysDef {
   const char* name;
   const char* nameJ;
   const char* description;
-  unsigned char id;
+  unsigned short id; // .fur file ID; may exceed 0xFF
   unsigned char id_DMF;
   int channels, minChans, maxChans;
   bool isFM, isSTD, isCompound;
@@ -121,7 +121,7 @@ struct DivSysDef {
   const EffectHandlerMap postEffectHandlers;
   const EffectHandlerMap preEffectHandlers;
   DivSysDef(
-    const char* sysName, const char* sysNameJ, unsigned char fileID, unsigned char fileID_DMF, int chans, int minCh, int maxCh,
+    const char* sysName, const char* sysNameJ, unsigned short fileID, unsigned char fileID_DMF, int chans, int minCh, int maxCh,
     bool isFMChip, bool isSTDChip, unsigned int vgmVer, bool compound, unsigned int formatMask, unsigned short waveWid, unsigned short waveHei,
     const char* desc,
     DivChanDefFunc gcdFunc,
@@ -267,6 +267,7 @@ enum DivSystem {
   DIV_SYSTEM_C64_PCM,
   DIV_SYSTEM_NAMCO_POLEPOS,
   DIV_SYSTEM_KLATTSCH,
+  DIV_SYSTEM_YAM10,
 
   DIV_SYSTEM_MAX
 };

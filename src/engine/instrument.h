@@ -102,6 +102,7 @@ enum DivInstrumentType: unsigned short {
   DIV_INS_UPD1771C=65,
   DIV_INS_SID3=66,
   DIV_INS_KLATTSCH=67,
+  DIV_INS_YAM10=68,
   DIV_INS_MAX,
   DIV_INS_NULL
 };
@@ -340,6 +341,116 @@ struct DivInstrumentMacro {
   }
 };
 
+struct DivInstrumentYAM10 {
+  struct Operator {
+    bool enable, fixedMode, ksr, customWave;
+    unsigned char ws;          // built in waveform; the wavetable is the separate customWave flag
+    unsigned char tl;          // 0-127
+    unsigned char ar, dr, d2r; // 0-31
+    unsigned char sl, rr;      // 0-15
+    unsigned char rs;          // rate scaling 0-3
+    unsigned char delay;       // 0 is none, else 256<<delay samples before the attack
+    unsigned char mult;        // 0 = x0.5
+    signed char dtFine;        // cents, -64..63
+    signed char dtSemi;        // semitones, -36..36
+    unsigned char fb;          // self feedback 0-7, on any operator
+    unsigned char outLvl;      // carrier output level
+    unsigned char pan;         // 0-255, 128 = centre
+    unsigned char modIn;       // bitmask of operators modulating this one
+    unsigned char duty;        // pulse width in 256ths, only read by the pulse wave
+    unsigned short fixedFreq;  // block in bits 10-12, F-num in bits 0-9
+    unsigned short phaseReset; // reset period in engine ticks, 0 = off
+    short customWaveIndex;     // wavetable to use when customWave
+    Operator():
+      enable(false), fixedMode(false), ksr(false), customWave(false),
+      ws(0), tl(0), ar(31), dr(0), d2r(0), sl(0), rr(7), rs(0), delay(0),
+      mult(1), dtFine(0), dtSemi(0), fb(0), outLvl(0), pan(128), modIn(0),
+      duty(32), fixedFreq(0), phaseReset(0), customWaveIndex(0) {}
+    bool operator==(const Operator& o) const;
+    bool operator!=(const Operator& o) const { return !(*this==o); }
+  } op[6];
+  struct Filter {
+    bool enable;
+    unsigned char mode;        // 0 low, 1 high, 2 band, 3 notch
+    unsigned char cutoff;      // 0-255, 1 Hz to 38.5 kHz
+    unsigned char res;         // 0-255, Q 0.01 to 21
+    Filter(): enable(false), mode(0), cutoff(220), res(20) {}
+    bool operator==(const Filter& o) const;
+    bool operator!=(const Filter& o) const { return !(*this==o); }
+  } filter[3];
+  bool distEnable, chorusEnable;
+  unsigned char distGain, distCutoff, distLevel;
+  unsigned char chorusMix, chorusRate, chorusDepth, chorusFeedback, chorusWidth;
+  unsigned char reverbMix, reverbSend, reverbDecay;
+  bool reverbEnable;
+  unsigned char reverbEarly, reverbDiffusion, reverbSize, reverbDamp;
+  bool compEnable;
+  unsigned char compThreshold, compRatio, compUpRatio, compMakeup;
+  unsigned char compAttack, compDecay;
+  unsigned char compLoMid, compMidHi;
+  unsigned char compLowGain, compMidGain, compHighGain;
+  bool eqEnable;
+  unsigned char eqCount;               // how many bands have been placed
+  struct EQBand {
+    bool on;
+    unsigned char type;                // 0 peak, 1 low shelf, 2 high shelf,
+                                       // 3 low pass, 4 high pass, 5 notch
+    unsigned char freq, gain, q;
+    bool operator==(const EQBand& o) const {
+      return on==o.on && type==o.type && freq==o.freq && gain==o.gain && q==o.q;
+    }
+    bool operator!=(const EQBand& o) const { return !(*this==o); }
+    EQBand(): on(true), type(0), freq(160), gain(128), q(67) {}
+  } eqBand[32];
+  bool phaseInvL, phaseInvR;
+  unsigned char echoMix, echoFeedback;
+  unsigned short echoDelay;    // ms
+  bool eqBandsEqual(const DivInstrumentYAM10& o) const;
+  bool operator==(const DivInstrumentYAM10& o) const;
+  bool operator!=(const DivInstrumentYAM10& o) const { return !(*this==o); }
+  DivInstrumentYAM10():
+    distEnable(false), chorusEnable(false),
+    distGain(48), distCutoff(80), distLevel(16),
+    chorusMix(64), chorusRate(16), chorusDepth(32), chorusFeedback(32), chorusWidth(0),
+    reverbMix(0), reverbSend(96), reverbDecay(80),
+    reverbEnable(false),
+    reverbEarly(48), reverbDiffusion(80), reverbSize(64), reverbDamp(48),
+    compEnable(false),
+    compThreshold(96), compRatio(32), compUpRatio(0), compMakeup(64),
+    compAttack(40), compDecay(64),
+    compLoMid(116), compMidHi(172),
+    compLowGain(128), compMidGain(128), compHighGain(128),
+    eqEnable(false), eqCount(0),
+    phaseInvL(false), phaseInvR(false),
+    echoMix(0), echoFeedback(64), echoDelay(250) {
+    // "Noob's EP" by rednoobmusic: three two operator stacks, lightly
+    // detuned against each other.
+    struct Def { unsigned char ws,tl,ar,dr,d2r,sl,rr,mult,outLvl,modIn; signed char dtFine; };
+    static const Def d[6]={
+      { 0, 26,31, 4,31,15, 0,2,   0,0x00,  4},
+      { 0,  0,31, 0, 7, 0, 7,2, 115,0x01,  0},
+      {12,  0,31,22, 4, 2,15,3,   0,0x00,  0},
+      { 0,  9,31, 9,31,15,15,5, 127,0x04,  0},
+      { 0, 16,31, 0, 2, 0,15,9,   0,0x00, -6},
+      { 0,  0,31,17, 6, 3,15,6,  89,0x10,  0}
+    };
+    for (int i=0; i<6; i++) {
+      op[i].enable=true;
+      op[i].ws=d[i].ws;
+      op[i].tl=d[i].tl;
+      op[i].ar=d[i].ar;
+      op[i].dr=d[i].dr;
+      op[i].d2r=d[i].d2r;
+      op[i].sl=d[i].sl;
+      op[i].rr=d[i].rr;
+      op[i].mult=d[i].mult;
+      op[i].outLvl=d[i].outLvl;
+      op[i].modIn=d[i].modIn;
+      op[i].dtFine=d[i].dtFine;
+    }
+  }
+};
+
 struct DivInstrumentSTD {
   DivInstrumentMacro volMacro;
   DivInstrumentMacro arpMacro;
@@ -393,7 +504,7 @@ struct DivInstrumentSTD {
       rsMacro(DIV_MACRO_OP_RS), dtMacro(DIV_MACRO_OP_DT), d2rMacro(DIV_MACRO_OP_D2R), ssgMacro(DIV_MACRO_OP_SSG),
       damMacro(DIV_MACRO_OP_DAM), dvbMacro(DIV_MACRO_OP_DVB), egtMacro(DIV_MACRO_OP_EGT), kslMacro(DIV_MACRO_OP_KSL),
       susMacro(DIV_MACRO_OP_SUS), vibMacro(DIV_MACRO_OP_VIB), wsMacro(DIV_MACRO_OP_WS), ksrMacro(DIV_MACRO_OP_KSR) {}
-  } opMacros[4];
+  } opMacros[6];
 
   DivInstrumentMacro* macroByType(DivMacroType type);
 
@@ -420,7 +531,7 @@ struct DivInstrumentSTD {
     ex8Macro(DIV_MACRO_EX8),
     ex9Macro(DIV_MACRO_EX9),
     ex10Macro(DIV_MACRO_EX10) {
-    for (int i=0; i<4; i++) {
+    for (int i=0; i<6; i++) {
       opMacros[i].amMacro.macroType=DIV_MACRO_OP_AM+(i<<5);
       opMacros[i].arMacro.macroType=DIV_MACRO_OP_AR+(i<<5);
       opMacros[i].drMacro.macroType=DIV_MACRO_OP_DR+(i<<5);
@@ -1070,6 +1181,7 @@ struct DivInstrumentKlattsch {
 struct DivInstrumentPOD {
   DivInstrumentType type;
   DivInstrumentFM fm;
+  DivInstrumentYAM10 yam10;
   DivInstrumentSTD std;
   DivInstrumentGB gb;
   DivInstrumentC64 c64;
@@ -1093,17 +1205,22 @@ struct DivInstrumentPOD {
   }
 };
 
+// these are indexed by macroType, which is a byte. operator macros run
+// base+(op<<5), so six operators reach 211 and the old size of 160 was short
+// by four operators' worth.
+#define DIV_MACRO_TYPE_MAX 256
+
 struct DivInstrumentTemp {
   // the following variables are used by the GUI and not saved in the file
-  int vScroll[160];
-  int vZoom[160];
-  int typeMemory[160][16];
-  unsigned char lenMemory[160];
+  int vScroll[DIV_MACRO_TYPE_MAX];
+  int vZoom[DIV_MACRO_TYPE_MAX];
+  int typeMemory[DIV_MACRO_TYPE_MAX][16];
+  unsigned char lenMemory[DIV_MACRO_TYPE_MAX];
   DivInstrumentTemp() {
-    memset(vScroll,0,160*sizeof(int));
-    memset(vZoom,-1,160*sizeof(int));
-    memset(typeMemory,0,160*16*sizeof(int));
-    memset(lenMemory,0,160*sizeof(unsigned char));
+    memset(vScroll,0,sizeof(vScroll));
+    memset(vZoom,-1,sizeof(vZoom));
+    memset(typeMemory,0,sizeof(typeMemory));
+    memset(lenMemory,0,sizeof(lenMemory));
   }
 };
 
@@ -1184,6 +1301,8 @@ struct DivInstrument: DivInstrumentPOD {
   void writeFeatureMA(SafeWriter* w);
   void writeFeature64(SafeWriter* w);
   void writeFeatureGB(SafeWriter* w);
+  void writeFeatureYA(SafeWriter* w);
+  void writeFeatureYD(SafeWriter* w);
   void writeFeatureSM(SafeWriter* w);
   void writeFeatureOx(SafeWriter* w, int op);
   void writeFeatureLD(SafeWriter* w);
@@ -1209,6 +1328,8 @@ struct DivInstrument: DivInstrumentPOD {
   void readFeatureMA(SafeReader& reader, short version);
   void readFeature64(SafeReader& reader, bool& volIsCutoff, short version);
   void readFeatureGB(SafeReader& reader, short version);
+  void readFeatureYA(SafeReader& reader, short version);
+  void readFeatureYD(SafeReader& reader, short version);
   void readFeatureSM(SafeReader& reader, short version);
   void readFeatureOx(SafeReader& reader, int op, short version);
   void readFeatureLD(SafeReader& reader, short version);

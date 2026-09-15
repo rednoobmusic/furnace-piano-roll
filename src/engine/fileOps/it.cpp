@@ -18,6 +18,7 @@
  */
 
 #include "fileOpsCommon.h"
+#include <memory>
 
 extern "C" {
 #include "../../../extern/itcompress/compression.h"
@@ -217,7 +218,10 @@ bool DivEngine::loadIT(unsigned char* file, size_t len) {
   memset(noteMap,0,256*128);
 
   try {
-    DivSong ds;
+    // a whole song is far more than the stack can hold on some platforms,
+    // where the frame overflows before the file has even been read
+    std::unique_ptr<DivSong> dsPtr(new DivSong);
+    DivSong& ds=*dsPtr;
     ds.version=DIV_VERSION_IT;
     ds.compatFlags.noSlidesOnFirstTick=true;
     ds.compatFlags.rowResetsArpPos=true;
