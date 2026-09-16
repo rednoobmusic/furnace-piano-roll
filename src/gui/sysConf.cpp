@@ -22,6 +22,7 @@
 #include "gui.h"
 #include "misc/cpp/imgui_stdlib.h"
 #include <imgui.h>
+#include <klattsch/banks.hpp>
 
 bool FurnaceGUI::drawSysConf(int chan, int sysPos, DivSystem type, DivConfig& flags, unsigned short& systemChans, bool modifyOnChange, bool fromMenu) {
   bool altered=false;
@@ -2079,6 +2080,24 @@ bool FurnaceGUI::drawSysConf(int chan, int sysPos, DivSystem type, DivConfig& fl
       }
       break;
     }
+    case DIV_SYSTEM_DUMMY: {
+      supportsCustomRate=false;
+      int volMax=flags.getInt("volMax",15);
+
+      ImGui::Text(_("Maximum volume:"));
+      if (CWSliderInt("##VolMax",&volMax,1,255)) {
+        if (volMax<1) volMax=1;
+        if (volMax>255) volMax=255;
+        altered=true;
+      } rightClickable
+
+      if (altered) {
+        e->lockSave([&]() {
+          flags.set("volMax",volMax);
+        });
+      }
+      break;
+    }
     case DIV_SYSTEM_SNES: {
       char temp[64];
       int vsL=127-(flags.getInt("volScaleL",0)&127);
@@ -2542,6 +2561,27 @@ bool FurnaceGUI::drawSysConf(int chan, int sysPos, DivSystem type, DivConfig& fl
           flags.set("memSize",memSize);
           flags.set("isDiscrete",isDiscrete);
           flags.set("oldSlides",oldSlides);
+        });
+      }
+      break;
+    }
+    case DIV_SYSTEM_KLATTSCH: {
+      supportsCustomRate=false;
+      String bankName=flags.getString("bank","ja-mokhtari-2000");
+
+      ImGui::TextUnformatted(_("Phoneme bank:"));
+      ImGui::Indent();
+      for (const std::string& b: klattsch::builtInBanks().list()) {
+        if (ImGui::RadioButton(b.c_str(),bankName==b.c_str())) {
+          bankName=b;
+          altered=true;
+        }
+      }
+      ImGui::Unindent();
+
+      if (altered) {
+        e->lockSave([&]() {
+          flags.set("bank",bankName);
         });
       }
       break;

@@ -225,7 +225,7 @@ double DivEngine::benchmarkPlayback() {
 
   // benchmark
   while (playing) {
-    nextBuf(NULL,outBuf,0,2,EXPORT_BUFSIZE);
+    nextBuf(NULL,outBuf,0,2,EXPORT_BUFSIZE,true);
   }
 
   std::chrono::high_resolution_clock::time_point timeEnd=std::chrono::high_resolution_clock::now();
@@ -2524,6 +2524,13 @@ void DivEngine::getPlayPosTick(int& order, int& row, int& tick, int& speed) {
   tick=ticks;
   speed=prevSpeed;
   playPosLock.unlock();
+}
+
+int DivEngine::getPreviewSpeed() {
+  playPosLock.lock();
+  const int speed=(playing && !freelance)?prevSpeed:curSubSong->speeds.val[0];
+  playPosLock.unlock();
+  return speed;
 }
 
 int DivEngine::getElapsedBars() {

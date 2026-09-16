@@ -56,8 +56,8 @@ class DivWorkPool;
 
 #define DIV_UNSTABLE
 
-#define DIV_VERSION "dev250"
-#define DIV_ENGINE_VERSION 250
+#define DIV_VERSION "dev251"
+#define DIV_ENGINE_VERSION 251
 // for imports
 #define DIV_VERSION_MOD 0xff01
 #define DIV_VERSION_FC 0xff02
@@ -66,6 +66,7 @@ class DivWorkPool;
 #define DIV_VERSION_TFE 0xff05
 #define DIV_VERSION_XM 0xff06
 #define DIV_VERSION_IT 0xff07
+#define DIV_VERSION_MIDI 0xff08
 
 enum DivStatusView {
   DIV_STATUS_NOTHING=0,
@@ -361,6 +362,42 @@ struct DivEffectContainer {
   }
 };
 
+struct DivMIDIImportOptions {
+  bool useBaseTempo;
+  bool importVelocity;
+  bool importCC7;
+  bool importCC11;
+  bool importSustain;
+  bool importPan;
+  bool importVibrato;
+  bool importPitchBend;
+  bool splitDrums;
+  int quantize;
+  int ticksPerRow;
+  int patternLen;
+  int drumChannel;
+  int vibratoRate;
+  int vibratoDepth;
+  int bendRange;
+  DivMIDIImportOptions():
+    useBaseTempo(true),
+    importVelocity(true),
+    importCC7(true),
+    importCC11(true),
+    importSustain(true),
+    importPan(true),
+    importVibrato(true),
+    importPitchBend(true),
+    splitDrums(true),
+    quantize(32),
+    ticksPerRow(6),
+    patternLen(64),
+    drumChannel(10),
+    vibratoRate(5),
+    vibratoDepth(8),
+    bendRange(0) {}
+};
+
 extern const char* cmdName[];
 
 class DivEngine {
@@ -382,7 +419,7 @@ class DivEngine {
   bool extValuePresent;
   bool repeatPattern;
   bool metronome;
-  bool exporting;
+  std::atomic<bool> exporting;
   bool stopExport;
   bool halted;
   bool forceMono;
@@ -431,6 +468,7 @@ class DivEngine {
   DivAudioExportFormats exportFormat;
   DivAudioExportWavFormats wavFormat;
   DivAudioExportBitrateModes exportBitRateMode;
+  double prevAudioRate;
   double exportFadeOut;
   bool isFadingOut;
   int exportOutputs;
@@ -547,6 +585,7 @@ class DivEngine {
   bool loadFC(unsigned char* file, size_t len);
   bool loadTFMv1(unsigned char* file, size_t len);
   bool loadTFMv2(unsigned char* file, size_t len);
+  bool loadMIDI(unsigned char* file, size_t len);
 
   void loadDMP(SafeReader& reader, std::vector<DivInstrument*>& ret, String& stripPath);
   void loadTFI(SafeReader& reader, std::vector<DivInstrument*>& ret, String& stripPath);
@@ -630,8 +669,11 @@ class DivEngine {
 
     float chipPeak[DIV_MAX_CHIPS][DIV_MAX_OUTPUTS];
 
+    // ugh...
+    DivMIDIImportOptions midiImportOptions;
+
     void runExportThread();
-    void nextBuf(float** in, float** out, int inChans, int outChans, unsigned int size);
+    void nextBuf(float** in, float** out, int inChans, int outChans, unsigned int size, bool calledFromExport=false);
     DivInstrument* getIns(int index, DivInstrumentType fallbackType=DIV_INS_FM);
     DivWavetable* getWave(int index);
     DivSample* getSample(int index);
@@ -934,6 +976,9 @@ class DivEngine {
     // synchronous get order/row
     void getPlayPos(int& order, int& row);
     void getPlayPosTick(int& order, int& row, int& tick, int& speed);
+
+    // get the row speed used for live preview timing
+    int getPreviewSpeed();
 
     // get beat/bar
     int getElapsedBars();
@@ -1461,6 +1506,7 @@ class DivEngine {
       exportFormat(DIV_EXPORT_FORMAT_WAV),
       wavFormat(DIV_EXPORT_WAV_S16),
       exportBitRateMode(DIV_EXPORT_BITRATE_CONSTANT),
+      prevAudioRate(44100.0),
       exportFadeOut(0.0),
       isFadingOut(false),
       exportOutputs(2),
