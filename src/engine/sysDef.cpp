@@ -22,15 +22,19 @@
 #include "instrument.h"
 #include "song.h"
 #include "../ta-log.h"
+#include <map>
 
-DivSysDef* DivEngine::sysDefs[DIV_MAX_CHIP_DEFS];
-DivSystem DivEngine::sysFileMapFur[DIV_MAX_CHIP_FILE_IDS];
-DivSystem DivEngine::sysFileMapDMF[DIV_MAX_CHIP_FILE_IDS];
+DivSysDef* DivEngine::sysDefs[DIV_SYSTEM_MAX];
+
+static std::map<unsigned short,DivSystem> sysFileMapFur;
+static std::map<unsigned short,DivSystem> sysFileMapDMF;
 
 DivSystem DivEngine::systemFromFileFur(unsigned short val) {
-  // the file hands us a raw 16 bit id and the map holds DIV_MAX_CHIP_FILE_IDS
-  if (val>=DIV_MAX_CHIP_FILE_IDS) return DIV_SYSTEM_NULL;
-  return sysFileMapFur[val];
+  auto ret=sysFileMapFur.find(val);
+  if (ret!=sysFileMapFur.cend()) {
+    return ret->second;
+  }
+  return DIV_SYSTEM_NULL;
 }
 
 unsigned short DivEngine::systemToFileFur(DivSystem val) {
@@ -39,7 +43,11 @@ unsigned short DivEngine::systemToFileFur(DivSystem val) {
 }
 
 DivSystem DivEngine::systemFromFileDMF(unsigned char val) {
-  return sysFileMapDMF[val];
+  auto ret=sysFileMapDMF.find(val);
+  if (ret!=sysFileMapDMF.cend()) {
+    return ret->second;
+  }
+  return DIV_SYSTEM_NULL;
 }
 
 unsigned char DivEngine::systemToFileDMF(DivSystem val) {
@@ -2929,7 +2937,7 @@ void DivEngine::registerSystems() {
     );
 
 
-  for (int i=0; i<DIV_MAX_CHIP_DEFS; i++) {
+  for (int i=0; i<DIV_SYSTEM_MAX; i++) {
     if (sysDefs[i]==NULL) continue;
     if (sysDefs[i]->id!=0) {
       sysFileMapFur[sysDefs[i]->id]=(DivSystem)i;

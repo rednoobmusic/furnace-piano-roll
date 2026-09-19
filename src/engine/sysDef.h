@@ -105,7 +105,7 @@ struct DivSysDef {
   const char* name;
   const char* nameJ;
   const char* description;
-  unsigned short id; // .fur file ID; may exceed 0xFF
+  unsigned short id;
   unsigned char id_DMF;
   int channels, minChans, maxChans;
   bool isFM, isSTD, isCompound;

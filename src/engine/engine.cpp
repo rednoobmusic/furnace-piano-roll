@@ -3147,6 +3147,9 @@ void DivEngine::delSample(int index) {
   BUSY_BEGIN;
   saveLock.lock();
   delSampleUnsafe(index);
+  for (int i=0; i<song.systemLen; i++) {
+    disCont[i].dispatch->notifyPitchTable();
+  }
   saveLock.unlock();
   BUSY_END;
 }
