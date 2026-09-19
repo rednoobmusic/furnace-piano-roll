@@ -91,6 +91,7 @@
 #include "platform/dave.h"
 #include "platform/nds.h"
 #include "platform/bifurcator.h"
+#include "platform/klattsch.h"
 #include "platform/sid2.h"
 #include "platform/sid3.h"
 #include "platform/i8244.h"
@@ -561,6 +562,11 @@ void DivDispatchContainer::init(DivSystem sys, DivEngine* eng, int chanCount, do
       break;
     case DIV_SYSTEM_OPZ:
       dispatch=new DivPlatformTX81Z;
+      if (isRender) {
+        ((DivPlatformTX81Z*)dispatch)->setCore(eng->getConfInt("opzCoreRender",0));
+      } else {
+        ((DivPlatformTX81Z*)dispatch)->setCore(eng->getConfInt("opzCore",0));
+      }
       break;
     case DIV_SYSTEM_SAA1099: {
       dispatch=new DivPlatformSAA1099;
@@ -726,6 +732,9 @@ void DivDispatchContainer::init(DivSystem sys, DivEngine* eng, int chanCount, do
       break;
     case DIV_SYSTEM_BIFURCATOR:
       dispatch=new DivPlatformBifurcator;
+      break;
+    case DIV_SYSTEM_KLATTSCH:
+      dispatch=new DivPlatformKlattsch;
       break;
     case DIV_SYSTEM_PCM_DAC:
       dispatch=new DivPlatformPCMDAC;
