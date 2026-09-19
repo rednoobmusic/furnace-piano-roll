@@ -839,6 +839,7 @@ src/engine/waveSynth.cpp
 src/engine/wavOps.cpp
 src/engine/oscVideoRender.cpp
 src/engine/vgmOps.cpp
+src/engine/s98Ops.cpp
 
 src/engine/platform/abstract.cpp
 src/engine/platform/genesis.cpp

@@ -2500,6 +2500,16 @@ void FurnaceGUI::openFileDialog(FurnaceGUIFileDialogs type) {
         dpiScale
       );
       break;
+    case GUI_FILE_EXPORT_S98:
+      if (!dirExists(workingDirS98Export)) workingDirS98Export=getHomeDir();
+      hasOpened=fileDialog->openSave(
+        _("Export S98"),
+        {_("S98 file"), "*.s98"},
+        workingDirS98Export,
+        dpiScale,
+        (settings.autoFillSave)?shortName:""
+      );
+      break;
     case GUI_FILE_EXPORT_TEXT:
       if (!dirExists(workingDirROMExport)) workingDirROMExport=getHomeDir();
       hasOpened=fileDialog->openSave(
@@ -5443,6 +5453,10 @@ bool FurnaceGUI::loop() {
             drawExportVGM();
             ImGui::EndMenu();
           }
+          if (ImGui::BeginMenu(_("export S98..."))) {
+            drawExportS98();
+            ImGui::EndMenu();
+          }
           if (romExportExists) {
             if (ImGui::BeginMenu(_("export ROM..."))) {
               drawExportROM();
@@ -5478,6 +5492,10 @@ bool FurnaceGUI::loop() {
           }
           if (ImGui::MenuItem(_("export VGM..."))) {
             curExportType=GUI_EXPORT_VGM;
+            displayExport=true;
+          }
+          if (ImGui::MenuItem(_("export S98..."))) {
+            curExportType=GUI_EXPORT_S98;
             displayExport=true;
           }
           if (romExportExists) {
@@ -6123,6 +6141,9 @@ bool FurnaceGUI::loop() {
           break;
         case GUI_FILE_OSC_VIDEO_FFMPEG:
           break;
+        case GUI_FILE_EXPORT_S98:
+          workingDirS98Export=fileDialog->getPath()+DIR_SEPARATOR_STR;
+          break;
         case GUI_FILE_EXPORT_ROM:
         case GUI_FILE_EXPORT_TEXT:
 #ifdef WITH_JSON
@@ -6234,6 +6255,9 @@ bool FurnaceGUI::loop() {
           }
           if (curFileDialog==GUI_FILE_EXPORT_OSC_VIDEO) {
             checkExtension(oscVideoOutputFilterExt.c_str());
+          }
+          if (curFileDialog==GUI_FILE_EXPORT_S98) {
+            checkExtension(".s98");
           }
           if (curFileDialog==GUI_FILE_EXPORT_ROM) {
             checkExtension(romFilterExt.c_str());
@@ -6753,6 +6777,27 @@ bool FurnaceGUI::loop() {
               });
               oscVideoThread->detach();
               break;
+            case GUI_FILE_EXPORT_S98: {
+              SafeWriter* w=e->saveS98(s98ExportTickRate,willExport,s98ExportLoop,s98ExportTrailingTicks);
+              if (w!=NULL) {
+                FILE* f=ps_fopen(copyOfName.c_str(),"wb");
+                if (f!=NULL) {
+                  fwrite(w->getFinalBuf(),1,w->size(),f);
+                  fclose(f);
+                  pushRecentSys(copyOfName.c_str());
+                } else {
+                  showError(_("could not open file!"));
+                }
+                w->finish();
+                delete w;
+                if (!e->getWarnings().empty()) {
+                  showWarning(e->getWarnings(),GUI_WARN_GENERIC);
+                }
+              } else {
+                showError(fmt::sprintf(_("could not write S98! (%s)"),e->getLastError()));
+              }
+              break;
+            }
             case GUI_FILE_EXPORT_ROM:
               romExportPath=copyOfName;
               pendingExport=e->buildROM(romTarget);
@@ -9233,6 +9278,7 @@ void FurnaceGUI::syncState() {
   workingDirSample=e->getConfString("lastDirSample",workingDir);
   workingDirAudioExport=e->getConfString("lastDirAudioExport",workingDir);
   workingDirVGMExport=e->getConfString("lastDirVGMExport",workingDir);
+  workingDirS98Export=e->getConfString("lastDirS98Export",workingDir);
   workingDirROMExport=e->getConfString("lastDirROMExport",workingDir);
   workingDirROM=e->getConfString("lastDirROM",workingDir);
   workingDirFont=e->getConfString("lastDirFont",workingDir);
@@ -9434,6 +9480,7 @@ void FurnaceGUI::commitState(DivConfig& conf) {
   conf.set("lastDirSample",workingDirSample);
   conf.set("lastDirAudioExport",workingDirAudioExport);
   conf.set("lastDirVGMExport",workingDirVGMExport);
+  conf.set("lastDirS98Export",workingDirS98Export);
   conf.set("lastDirROMExport",workingDirROMExport);
   conf.set("lastDirROM",workingDirROM);
   conf.set("lastDirFont",workingDirFont);
@@ -10347,6 +10394,9 @@ FurnaceGUI::FurnaceGUI():
   audioExportFilterExt("*"),
   dmfExportVersion(0),
   curExportType(GUI_EXPORT_NONE),
+  s98ExportTickRate(0.0f),
+  s98ExportLoop(true),
+  s98ExportTrailingTicks(-1),
   romTarget(DIV_ROM_ABSTRACT),
   romMultiFile(false),
   romExportSave(false),
