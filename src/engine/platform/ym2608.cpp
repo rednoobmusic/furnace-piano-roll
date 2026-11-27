@@ -1657,6 +1657,9 @@ int DivPlatformYM2608::dispatch(DivCommand c) {
       if (c.chan>=psgChanOffs) break;
       chan[c.chan].hardReset=c.value;
       break;
+    case DIV_CMD_TEST_REG:
+      rWrite(c.value,c.value2);
+      break;
     case DIV_CMD_MACRO_OFF:
       chan[c.chan].std.mask(c.value,true);
       break;
@@ -2006,7 +2009,7 @@ size_t DivPlatformYM2608::getSampleMemUsage(int index) {
 
 bool DivPlatformYM2608::isSampleLoaded(int index, int sample) {
   if (index!=0) return false;
-  if (sample<0 || sample>32767) return false;
+  if (sample<0 || sample>=getMaxSamples(index)) return false;
   return sampleLoaded[sample];
 }
 
@@ -2073,21 +2076,21 @@ void DivPlatformYM2608::setFlags(const DivConfig& flags) {
   switch (flags.getInt("prescale",0)) {
     case 0x01: // /3
       prescale=0x2e;
-      fmFreqBase=9440540.0/2.0,
+      fmFreqBase=9437184.0/2.0,
       fmDivBase=36,
       ayDiv=16;
       nukedMult=16;
       break;
     case 0x02: // /2
       prescale=0x2f;
-      fmFreqBase=9440540.0/3.0,
+      fmFreqBase=9437184.0/3.0,
       fmDivBase=24,
       ayDiv=8;
       nukedMult=24;
       break;
     default: // /6
       prescale=0x2d;
-      fmFreqBase=9440540.0,
+      fmFreqBase=9437184.0,
       fmDivBase=72,
       ayDiv=32;
       nukedMult=8;
@@ -2181,7 +2184,7 @@ void DivPlatformYM2608::quit() {
 
 // initialization of important arrays
 DivPlatformYM2608::DivPlatformYM2608():
-  DivPlatformOPN(2, 6, 9, 15, 16, 9440540.0, 72, 32, false, 16),
+  DivPlatformOPN(2, 6, 9, 15, 16, 9437184.0, 72, 32, false, 16),
   prescale(0x2d),
   isCSM(0) {
   sampleOffB=new unsigned int[32768];

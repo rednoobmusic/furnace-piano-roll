@@ -154,11 +154,19 @@ void DivPlatformArcade::acquire_ymfm(short** buf, size_t len) {
 }
 
 void DivPlatformArcade::acquire_lle(short** buf, size_t len) {
+  thread_local int fmOut[8];
+
   for (int i=0; i<8; i++) {
     oscBuf[i]->begin(len);
   }
 
   for (size_t h=0; h<len; h++) {
+    unsigned char subCycle=0;
+
+    for (int i=0; i<8; i++) {
+      fmOut[i]=0;
+    }
+
     while (true) {
       lastSH1=fm_lle.o_sh1;
       lastSH2=fm_lle.o_sh2;
@@ -213,6 +221,13 @@ void DivPlatformArcade::acquire_lle(short** buf, size_t len) {
       FMOPM_Clock(&fm_lle,1);
       FMOPM_Clock(&fm_lle,0);
 
+      // chan osc
+      // the accumulator input is valid on odd half-cycles (counting from the SH1 edge)
+      if ((subCycle&1) && fm_lle.op_mix) {
+        fmOut[((subCycle+1)>>1)&7]+=((short)(fm_lle.accm_input<<2))>>2;
+      }
+      subCycle++;
+
       if (delay<=0 && isWaiting&2) {
         if (!(fm_lle.o_data&0x80)) {
           isWaiting=0;
@@ -249,8 +264,7 @@ void DivPlatformArcade::acquire_lle(short** buf, size_t len) {
     buf[1][h]=dacOut1;
 
     for (int i=0; i<8; i++) {
-      short chOut=fm_lle.accm_input;
-      oscBuf[i]->putSample(h,chOut);
+      oscBuf[i]->putSample(h,CLAMP(fmOut[i]<<1,-32768,32767));
     }
   }
 
@@ -968,6 +982,14 @@ int DivPlatformArcade::dispatch(DivCommand c) {
         }
       } else {
         rWrite(0x0f,0);
+      }
+      break;
+    }
+    case DIV_CMD_TEST_REG: {
+      if (chipType==1) {
+        rWrite(0x09,c.value2);
+      } else {
+        rWrite(0x01,c.value2);
       }
       break;
     }

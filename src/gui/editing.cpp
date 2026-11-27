@@ -289,6 +289,11 @@ void FurnaceGUI::doSelectAll() {
   curNibble=0;
   if (selStart.xFine==0 && selEnd.xFine==2+e->curPat[selEnd.xCoarse].effectCols*2) {
     if (selStart.y==0 && selEnd.y==e->curSubSong->patLen-1) { // select entire pattern
+      if (selStart.xCoarse==0 && selEnd.xCoarse==e->getTotalChannelCount()-1 && !orderLock) {
+        // select entire song if the pattern is selected
+        selStart.order=0;
+        selEnd.order=e->curSubSong->ordersLen-1;
+      }
       selStart.xCoarse=0;
       selStart.xFine=0;
       selEnd.xCoarse=e->getTotalChannelCount()-1;
@@ -2004,6 +2009,18 @@ void FurnaceGUI::doExpandSong(int multiplier) {
   recalcTimestamps=true;
 
   if (e->isPlaying()) e->play();
+}
+
+void FurnaceGUI::doCollapseChannel(int ch) {
+  if (ch<0 || ch>=e->getTotalChannelCount()) return;
+  if (e->curSubSong->chanCollapse[ch]==0) {
+    e->curSubSong->chanCollapse[ch]=3;
+  } else if (e->curSubSong->chanCollapse[ch]>0) {
+    e->curSubSong->chanCollapse[ch]--;
+    if (e->curSubSong->chanCollapse[ch]==1 && e->getChannelFlags(ch)&DIV_CHFLAG_NO_VOLUME) {
+      e->curSubSong->chanCollapse[ch]=0;
+    }
+  }
 }
 
 void FurnaceGUI::doAbsorbInstrument() {

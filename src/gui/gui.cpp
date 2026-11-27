@@ -883,6 +883,7 @@ void FurnaceGUI::autoDetectSystem() {
 }
 
 void FurnaceGUI::setCurIns(int newIns) {
+  insEditMacroInsChanged=true;
   curIns=newIns;
   memset(multiIns,-1,7*sizeof(int));
 }
@@ -8183,9 +8184,9 @@ bool FurnaceGUI::loop() {
               e->midiImportOptions.drumChannel=0;
             }
             for (int i=1; i<=16; i++) {
-              snprintf(strBuf,15,"%d",midiQuantizeValues[i]);
+              snprintf(strBuf,15,"%d",i);
               if (ImGui::Selectable(strBuf,e->midiImportOptions.drumChannel==i)) {
-                e->midiImportOptions.drumChannel=0;
+                e->midiImportOptions.drumChannel=i;
               }
             }
             ImGui::EndCombo();
@@ -9355,7 +9356,8 @@ void FurnaceGUI::syncState() {
     patChannelNames=e->getConfBool("patChannelNames",false);
   }
   patChannelPairs=e->getConfBool("patChannelPairs",true);
-  patChannelHints=e->getConfInt("patChannelHints",0);
+  patGlobalRegs=e->getConfBool("patGlobalRegs",true);
+  patChannelHints=e->getConfInt("patChannelHints",1);
   lockLayout=e->getConfBool("lockLayout",false);
 #ifdef IS_MOBILE
   fullScreen=true;
@@ -9553,6 +9555,7 @@ void FurnaceGUI::commitState(DivConfig& conf) {
   conf.set("patExtraButtons",patExtraButtons);
   conf.set("patChannelNames",patChannelNames);
   conf.set("patChannelPairs",patChannelPairs);
+  conf.set("patGlobalRegs",patGlobalRegs);
   conf.set("patChannelHints",(int)patChannelHints);
   conf.set("lockLayout",lockLayout);
   conf.set("fullScreen",fullScreen);
@@ -9926,6 +9929,9 @@ FurnaceGUI::FurnaceGUI():
   prevInsData(NULL),
   cachedCurInsPtr(NULL),
   insEditMayBeDirty(false),
+  insEditMacroEnvBottom(0),
+  insEditMacroEnvTop(0),
+  insEditMacroInsChanged(false),
   pendingLayoutImport(NULL),
   pendingLayoutImportLen(0),
   pendingLayoutImportStep(0),
@@ -9974,7 +9980,8 @@ FurnaceGUI::FurnaceGUI():
   patExtraButtons(false),
   patChannelNames(false),
   patChannelPairs(true),
-  patChannelHints(0),
+  patGlobalRegs(true),
+  patChannelHints(1),
   newSongFirstFrame(false),
   oldRowChanged(false),
   editControlsOpen(true),
@@ -10146,6 +10153,8 @@ FurnaceGUI::FurnaceGUI():
   macroScaleY(100.0f),
   macroRandMin(0),
   macroRandMax(0),
+  pendingMacroAdjBottom(0),
+  pendingMacroAdjTop(0),
   macroLoopDragStart(0,0),
   macroLoopDragAreaSize(0,0),
   macroLoopDragTarget(NULL),
@@ -10454,7 +10463,8 @@ FurnaceGUI::FurnaceGUI():
   opMaskTransposeValue.effect=false;
   opMaskTransposeValue.effectVal=true;
 
-  memset(patChanX,0,sizeof(float)*(DIV_MAX_CHANS+1));
+  patChanX=new float[(DIV_MAX_CHANS+1)*DIV_MAX_COLS];
+  memset(patChanX,0,sizeof(float)*(DIV_MAX_CHANS+1)*DIV_MAX_COLS);
   memset(patChanSlideY,0,sizeof(float)*(DIV_MAX_CHANS+1));
   memset(lastIns,-1,sizeof(int)*DIV_MAX_CHANS);
   memset(trigger,0,sizeof(void*)*DIV_MAX_OUTPUTS);
