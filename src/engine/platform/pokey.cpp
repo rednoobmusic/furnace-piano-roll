@@ -149,7 +149,9 @@ void DivPlatformPOKEY::tick(bool sysTick) {
       chan[i].freqChanged=true;
     }
     if (chan[i].std.duty.had) {
+      chan[i].audctl=chan[i].std.duty.val;
       audctl=chan[i].std.duty.val;
+      audctlState.effectiveChan=i;
       audctlChanged=true;
     }
     if (chan[i].std.wave.had) {
@@ -170,6 +172,14 @@ void DivPlatformPOKEY::tick(bool sysTick) {
 
   if (audctlChanged) {
     audctlChanged=false;
+
+    if (audctlCombine) {
+      audctl=0;
+      for (int i=0; i<4; i++) {
+        audctl|=chan[i].audctl;
+      }
+    }
+
     rWrite(8,audctl);
     for (int i=0; i<4; i++) {
       chan[i].freqChanged=true;
@@ -350,7 +360,9 @@ int DivPlatformPOKEY::dispatch(DivCommand c) {
       chan[c.chan].freqChanged=true; //round freq for specific waves
       break;
     case DIV_CMD_STD_NOISE_MODE:
+      chan[c.chan].audctl=c.value&0xff;
       audctl=c.value&0xff;
+      audctlState.effectiveChan=c.chan;
       audctlChanged=true;
       break;
     case DIV_CMD_STD_NOISE_FREQ:
@@ -450,6 +462,18 @@ void DivPlatformPOKEY::getPaired(int ch, std::vector<DivChannelPair>& ret) {
   }
 }
 
+DivGlobalRegState* DivPlatformPOKEY::getGlobalRegState(unsigned int index) {
+  if (index==0) {
+    // update and return global register state
+    for (int i=0; i<4; i++) {
+      audctlState.chanVal[i]=chan[i].audctl;
+    }
+    audctlState.val=audctl;
+    return &audctlState;
+  }
+  return NULL;
+}
+
 DivDispatchOscBuffer* DivPlatformPOKEY::getOscBuffer(int ch) {
   return oscBuf[ch];
 }
@@ -494,6 +518,7 @@ void DivPlatformPOKEY::reset() {
   audctlChanged=true;
   skctl=3;
   skctlChanged=true;
+  audctlState.effectiveChan=-1;
 }
 
 bool DivPlatformPOKEY::keyOffAffectsArp(int ch) {
@@ -526,6 +551,9 @@ void DivPlatformPOKEY::setFlags(const DivConfig& flags) {
     chipClock=COLOR_NTSC/2.0;
   }
   CHECK_CUSTOM_CLOCK;
+
+  audctlCombine=flags.getBool("audctlCombine",true);
+  audctlState.combine=audctlCombine;
 
   if (useAltASAP) {
     rate=chipClock/7;
@@ -560,11 +588,34 @@ int DivPlatformPOKEY::init(DivEngine* p, int channels, int sugRate, const DivCon
   for (int i=0; i<4; i++) {
     isMuted[i]=false;
     oscBuf[i]=new DivDispatchOscBuffer;
+    audctlState.chanVal.push_back(0);
   }
 
   if (!useAltASAP) {
     MZPOKEYSND_Init(&pokey);
   }
+
+  audctlState.name="AUDCTL";
+  audctlState.type=4;
+  audctlState.bits=8;
+  audctlState.firstChan=0;
+  audctlState.lastChan=3;
+  audctlState.bitName[0]="15KHz mode";
+  audctlState.bitName[1]="filter (2 + 4)";
+  audctlState.bitName[2]="filter (1 + 3)";
+  audctlState.bitName[3]="16-bit pitch (3 + 4)";
+  audctlState.bitName[4]="16-bit pitch (1 + 2)";
+  audctlState.bitName[5]="1.79Mhz mode (channel 3)";
+  audctlState.bitName[6]="1.79Mhz mode (channel 1)";
+  audctlState.bitName[7]="noise poly9";
+  audctlState.bitIcon[0]="15KHz";
+  audctlState.bitIcon[1]="filt2/4";
+  audctlState.bitIcon[2]="filt1/3";
+  audctlState.bitIcon[3]="16bit 3/4";
+  audctlState.bitIcon[4]="16bit 1/2";
+  audctlState.bitIcon[5]="1.79 ch1";
+  audctlState.bitIcon[6]="1.79 ch3";
+  audctlState.bitIcon[7]="poly9";
 
   setFlags(flags);
   reset();

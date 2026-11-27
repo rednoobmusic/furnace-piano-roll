@@ -719,6 +719,7 @@ bool FurnaceGUI::drawSysConf(int chan, int sysPos, DivSystem type, DivConfig& fl
       bool no1EUpdate=flags.getBool("no1EUpdate",false);
       bool multiplyRel=flags.getBool("multiplyRel",false);
       bool macroRace=flags.getBool("macroRace",false);
+      bool filterOld=flags.getBool("filterOld",false);
       int testAttack=flags.getInt("testAttack",0);
       int testDecay=flags.getInt("testDecay",0);
       int testSustain=flags.getInt("testSustain",0);
@@ -804,6 +805,11 @@ bool FurnaceGUI::drawSysConf(int chan, int sysPos, DivSystem type, DivConfig& fl
         altered=true;
       }
 
+  
+      if (ImGui::Checkbox(_("Use old cutoff macro implementation (compatibility)"),&filterOld)) {
+        altered=true;
+      }
+
 
       if (altered) {
         e->lockSave([&]() {
@@ -812,6 +818,7 @@ bool FurnaceGUI::drawSysConf(int chan, int sysPos, DivSystem type, DivConfig& fl
           flags.set("no1EUpdate",no1EUpdate);
           flags.set("multiplyRel",multiplyRel);
           flags.set("macroRace",macroRace);
+          flags.set("filterOld",filterOld);
           flags.set("testAttack",testAttack);
           flags.set("testDecay",testDecay);
           flags.set("testSustain",testSustain);
@@ -1021,8 +1028,12 @@ bool FurnaceGUI::drawSysConf(int chan, int sysPos, DivSystem type, DivConfig& fl
       }
       break;
     }
-    case DIV_SYSTEM_SAA1099: {
+    case DIV_SYSTEM_SAA1099:
+    case DIV_SYSTEM_SAA1099_NEW: {
       int clockSel=flags.getInt("clockSel",0);
+      int timerRate=flags.getInt("timerRate",15625);
+      bool envCombine=flags.getInt("envCombine",true);
+      bool envControl3T=flags.getInt("envControl3T",true);
 
       ImGui::Text(_("Clock rate:"));
       ImGui::Indent();
@@ -1040,9 +1051,50 @@ bool FurnaceGUI::drawSysConf(int chan, int sysPos, DivSystem type, DivConfig& fl
       }
       ImGui::Unindent();
 
+      if (type==DIV_SYSTEM_SAA1099_NEW) {
+        if (ImGui::InputInt(_("Software timer resolution##TimerRate"),&timerRate,10,1000)) {
+          if (timerRate<10) timerRate=10;
+          if (timerRate>125000) timerRate=125000;
+          altered=true;
+        }
+        ImGui::SetItemTooltip(_("15625Hz = PAL HBlank"));
+        ImGui::TextUnformatted(_("Maximum timer waveform frequencies:"));
+        ImGui::Text(_("- saw: %dHz (high-res)/%dHz (low-res)"),timerRate/16,timerRate/8);
+        ImGui::Text(_("- triangle: %dHz (high-res)/%dHz (low-res)"),timerRate/32,timerRate/16);
+      }
+
+      ImGui::Text(_("Envelope mode is determined by:"));
+      ImGui::Indent();
+      if (ImGui::RadioButton(_("Combining/OR'ing env mode macros/effects"),envCombine)) {
+        envCombine=true;
+        altered=true;
+      }
+      if (ImGui::RadioButton(_("Last channel in a group with an env mode macro or effect"),!envCombine)) {
+        envCombine=false;
+        altered=true;
+      }
+      ImGui::Unindent();
+
+      ImGui::Text(_("Which channels may change envelope mode?"));
+      ImGui::Indent();
+      if (ImGui::RadioButton(_("Channel 3/6 and timers"),envControl3T)) {
+        envControl3T=true;
+        altered=true;
+      }
+      if (ImGui::RadioButton(_("Any channel"),!envControl3T)) {
+        envControl3T=false;
+        altered=true;
+      }
+      ImGui::Unindent();
+
       if (altered) {
         e->lockSave([&]() {
           flags.set("clockSel",clockSel);
+          if (type==DIV_SYSTEM_SAA1099_NEW) {
+            flags.set("timerRate",timerRate);
+          }
+          flags.set("envCombine",envCombine);
+          flags.set("envControl3T",envControl3T);
         });
       }
       break;
@@ -1212,6 +1264,34 @@ bool FurnaceGUI::drawSysConf(int chan, int sysPos, DivSystem type, DivConfig& fl
           flags.set("clockSel",clockSel);
           flags.set("speakerType",speakerType);
           flags.set("resetPhase",resetPhase);
+        });
+      }
+      break;
+    }
+    case DIV_SYSTEM_POKEY: {
+      bool sysPal=flags.getInt("clockSel",0);
+      bool audctlCombine=flags.getBool("audctlCombine",true);
+
+      if (ImGui::Checkbox(_("PAL"),&sysPal)) {
+        altered=true;
+      }
+
+      ImGui::Text(_("AUDCTL is set by:"));
+      ImGui::Indent();
+      if (ImGui::RadioButton(_("Combining all channels' AUDCTL macro/effect values"),audctlCombine)) {
+        audctlCombine=true;
+        altered=true;
+      }
+      if (ImGui::RadioButton(_("Last channel which sets it"),!audctlCombine)) {
+        audctlCombine=false;
+        altered=true;
+      }
+      ImGui::Unindent();
+
+      if (altered) {
+        e->lockSave([&]() {
+          flags.set("clockSel",(int)sysPal);
+          flags.set("audctlCombine",audctlCombine);
         });
       }
       break;

@@ -484,7 +484,7 @@ bool DivSample::save(const char* path) {
   memset(&inst, 0, sizeof(inst));
   inst.gain = 1;
   // TODO: fix
-  short pitch = (0x3c * 100) + 50 - (log2((double)centerRate/8363.0) * 12.0 * 100.0);
+  short pitch = (0x3c * 100) + 50 - (log2((double)centerRate/8372.0) * 12.0 * 100.0);
   inst.basenote = pitch / 100;
   inst.detune = 50 - (pitch % 100);
   inst.velocity_hi = 0x7f;
@@ -1559,7 +1559,7 @@ void DivSample::render(unsigned int formatMask) {
     if (!initInternal(DIV_SAMPLE_DEPTH_12BIT,samples)) return;
     for (unsigned int i=0, j=0; i<samples; i+=2, j+=3) {
       data12[j+0]=data16[i+0]>>8;
-      data12[j+1]=(((data16[i+0]>>4)&0xf)<<4)|(i+1<samples?(data16[i+1]>>4)&0xf:0);
+      data12[j+1]=((data16[i+0]>>4)&0xf)|((i+1<samples?(data16[i+1]>>4)&0xf:0)<<4);
       if (i+1<samples) {
         data12[j+2]=data16[i+1]>>8;
       } else {
