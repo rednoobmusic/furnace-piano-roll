@@ -350,6 +350,8 @@ enum DivDispatchCmds {
   DIV_CMD_KLATTSCH_BW_SCALE,
   DIV_CMD_KLATTSCH_FORMANT_SHIFT,
 
+  DIV_CMD_TEST_REG, // (register, value)
+
   DIV_CMD_I8244_RATE,
   DIV_CMD_I8244_PULSE_WIDTH,
   DIV_CMD_I8244_RECIRCULATE,
@@ -1120,6 +1122,57 @@ struct DivChannelModeHints {
 };
 
 /**
+ * this struct provides a mechanism for the display of global register state.
+ * it also allows displaying each channel's last global register setting, and
+ * which channel's setting is taking effect.
+ */
+struct DivGlobalRegState {
+  // the global register's name.
+  const char* name;
+  // the global register's value,
+  unsigned int val;
+  // the global register's type.
+  // valid values are the same as DivChannelModeHints::type.
+  unsigned char type;
+  // channels affected by this global register.
+  unsigned char firstChan, lastChan;
+  // whether each channel's settings are OR'ed together to form the actual register value.
+  bool combine;
+  // number of bits in this register (0-32).
+  // if it is zero, only the effective channel marker will be displayed.
+  unsigned char bits;
+  // a name for each bit.
+  const char* bitName[32];
+  // an icon for each bit.
+  const char* bitIcon[32];
+  // the channel which set the register last (in non-combine mode).
+  int effectiveChan;
+  // the last value of each channel's attempt to set a global register.
+  // the size of this vector should be zero, or equal to the number of channels affected by this register (lastChan-firstChan+1)!
+  // if it is zero, the GUI won't display per-channel state.
+  std::vector<unsigned int> chanVal;
+  // whether the channel is taken into account for the global register.
+  // if one isn't, the GUI will hide its state in the global register overlay.
+  // the size of this vector must be zero or same as chanVal.
+  // if it is zero, all channels are taken into account.
+  std::vector<bool> chanValid;
+  DivGlobalRegState():
+    name(NULL),
+    val(0),
+    type(0),
+    firstChan(0),
+    lastChan(0),
+    combine(false),
+    bits(8),
+    effectiveChan(-1) {
+    for (int i=0; i<32; i++) {
+      bitName[i]=NULL;
+      bitIcon[i]=NULL;
+    }
+  }
+};
+
+/**
  * this enum describe possible types for memory entries in a memory composition struct.
  */
 enum DivMemoryEntryType {
@@ -1336,6 +1389,12 @@ class DivDispatch {
      */
     virtual DivChannelModeHints getModeHints(int chan);
 
+    /**
+     * get global register state.
+     * @param index the global register's index.
+     * @return a DivGlobalRegState, or NULL if the index is higher than the number of global registers.
+     */
+    virtual DivGlobalRegState* getGlobalRegState(unsigned int index=0);
 
     /**
      * get currently playing sample (and its position).
@@ -1570,6 +1629,20 @@ class DivDispatch {
      * @return an array of C strings, terminated by NULL; or NULL if none available.
      */
     virtual const char** getRegisterSheet();
+
+    /**
+     * get the sample group of specific channel.
+     * @param chan the channel.
+     * @return the sample group of channel. Default value is 0
+     */
+    virtual int getSampleGroup(int chan=0);
+
+    /**
+     * get a maximum allowed number of samples.
+     * @param index the memory index.
+     * @return a maximum allowed number of samples, or 0 if memory doesn't exist.
+     */
+    virtual int getMaxSamples(int index=0);
 
     /**
      * Get sample memory buffer.

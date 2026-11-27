@@ -50,6 +50,10 @@ DivChannelModeHints DivDispatch::getModeHints(int chan) {
   return DivChannelModeHints();
 }
 
+DivGlobalRegState* DivDispatch::getGlobalRegState(unsigned int index) {
+  return NULL;
+}
+
 DivMacroInt* DivDispatch::getChanMacroInt(int chan) {
   return NULL;
 }
@@ -215,6 +219,14 @@ void DivDispatch::poke(std::vector<DivRegWrite>& wlist) {
 
 const char** DivDispatch::getRegisterSheet() {
   return NULL;
+}
+
+int DivDispatch::getSampleGroup(int chan) {
+  return 0;
+}
+
+int DivDispatch::getMaxSamples(int index) {
+  return 32768;
 }
 
 const void* DivDispatch::getSampleMem(int index) {

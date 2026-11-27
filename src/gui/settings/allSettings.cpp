@@ -130,6 +130,7 @@ static const char* opl2Cores[]={
   "Nuked-OPL3",
   "ymfm",
   "YM3812-LLE",
+  "Nuked-CQM",
   "Nuked-OPL2 Lite"
 };
 
@@ -627,10 +628,6 @@ void FurnaceGUI::initSettings() {
         _N("Save unused patterns"),
         saveUnusedPatterns
       ),
-      SETTING_CHECKBOX(
-        _N("Don't apply compatibility flags when loading .dmf"),
-        noDMFCompat
-      ).Tooltip(_("do not report any issues arising from the use of this option!")),
       SettingEntry::Radio(
         _N("Play after opening song:"),"playOnLoad",&settings.playOnLoad,{
         {_N("No##pol0"),0},
@@ -919,6 +916,10 @@ void FurnaceGUI::initSettings() {
     }),
     // TODO: configuration import/export/reset options should be in a menu next to search.
     SUBCATEGORY(_N("Import"),{
+      SETTING_CHECKBOX(
+        _N("Don't apply compatibility flags when loading .dmf"),
+        noDMFCompat
+      ).Tooltip(_("do not report any issues arising from the use of this option!")),
       SETTING_CHECKBOX(
         _N("Use OPL3 instead of OPL2 for S3M import"),
         s3mOPL3
@@ -2741,6 +2742,7 @@ void FurnaceGUI::initSettings() {
       SETTING_COLOR(GUI_COLOR_CHANNEL_PCM),
       SETTING_COLOR(GUI_COLOR_CHANNEL_WAVE),
       SETTING_COLOR(GUI_COLOR_CHANNEL_OP),
+      SETTING_COLOR(GUI_COLOR_CHANNEL_TIMER),
       SETTING_COLOR(GUI_COLOR_CHANNEL_MUTED),
     }),
     SUBCATEGORY(_N("Pattern"), {
@@ -2754,6 +2756,7 @@ void FurnaceGUI::initSettings() {
       SETTING_COLOR(GUI_COLOR_PATTERN_SELECTION),
       SETTING_COLOR(GUI_COLOR_PATTERN_SELECTION_HOVER),
       SETTING_COLOR(GUI_COLOR_PATTERN_SELECTION_ACTIVE),
+      SETTING_COLOR(GUI_COLOR_PATTERN_CURSOR_POS_INDICATOR),
       SETTING_COLOR(GUI_COLOR_PATTERN_HI_1),
       SETTING_COLOR(GUI_COLOR_PATTERN_HI_2),
       SETTING_COLOR(GUI_COLOR_PATTERN_ROW_INDEX),
@@ -2933,6 +2936,8 @@ void FurnaceGUI::initSettings() {
       SETTING_KEYBIND(GUI_ACTION_INS_DOWN),
       SETTING_KEYBIND(GUI_ACTION_STEP_UP),
       SETTING_KEYBIND(GUI_ACTION_STEP_DOWN),
+      SETTING_KEYBIND(GUI_ACTION_STEP_UP_COARSE),
+      SETTING_KEYBIND(GUI_ACTION_STEP_DOWN_COARSE),
       SETTING_KEYBIND(GUI_ACTION_TOGGLE_EDIT),
       SETTING_KEYBIND(GUI_ACTION_METRONOME),
       SETTING_KEYBIND(GUI_ACTION_ORDER_LOCK),
