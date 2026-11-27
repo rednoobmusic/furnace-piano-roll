@@ -5,6 +5,119 @@ it also provides information on applied transformations for the sake of compatib
 
 **this is a work in progress!**
 
+## dev260 - SAA1099 change
+
+the envelope control register is now controlled exclusively by channel 3/6 and the timers, rather than all channels.
+
+the previous behavior can be reverted by setting the `envControl3T` chip config option to false (should be set when loading an older song).
+
+## dev259 - Game Boy changes
+
+Furnace lacked a mechanism to set the length counter (sound length) for the Game Boy's wave channel.
+this version adds the ability to set that; however, a tiny format change is necessary since the wave channel's length counter is four times as long and Furnace used values higher than 64 to represent infinity (length counter disabled).
+
+this change preserves compatibility with previous versions by displaying the sound length as a slider with steps from 0-255 and infinity (when set, the sound length internally becomes 255).
+
+the instrument format change is highlighted below (specifically, the `GB` feature).
+
+before:
+
+```
+size | description
+-----|------------------------------------
+  1  | envelope params
+  1  | sound length (0-63 or 64 = infinity)
+  1  | flags
+     | - bit 2: double wave width for GBA (>=196)
+     | - bit 1: always init envelope
+     | - bit 0: software envelope (zombie mode)
+ ... | ...
+```
+
+after:
+
+```
+size | description
+-----|------------------------------------
+  1  | envelope params
+  1  | sound length (0-255)
+  1  | flags
+     | - bit 3: infinite sound length (>=259)
+     | - bit 2: double wave width for GBA (>=196)
+     | - bit 1: always init envelope
+     | - bit 0: software envelope (zombie mode)
+ ... | ...
+```
+
+when loading a previous version song, set the infinite sound length flag if the sound length is greater than 63.
+
+## dev258 - POKEY AUDCTL change
+
+AUDCTL handling was unintuitive. the last channel writing to AUDCTL (either through macro or effect) was the one responsible for the register's actual value.
+
+somebody suggested an improvement. rather than only letting one channel go through, combine the value of each channel's AUDCTL macro/effect by OR'ing.
+
+this behavior may be controlled through a chip config option called `audctlCombine`. make sure you set it to false when loading an older song.
+
+## dev257 - SAA1099 revamp
+
+an option for the SAA1099 chip has been added, which introduces two software timers for driving the envelopes.
+
+it also changes the way envelope setup is handled. formerly, the last channel with an envelope macro or effect would be the one to set the envelope control register.
+now, the values of all channels are combined (OR'ed together) and fed to the envelope control register.
+
+this behavior may be controlled through a new chip config option called `envCombine`. make sure you set it to false when loading an older song.
+
+## dev256 - new sample playback rate calculation
+
+Furnace used 8363Hz as the "base" C-4 rate. this number was taken from OpenMPT and Amiga trackers where the closest period to C-4 × 32 yielded a frequency of ~8363Hz in NTSC Amiga machines.
+
+this however resulted in inaccurate frequency calculation, where a sample set to 44100Hz wouldn't exactly play back at that frequency.
+
+this version corrects that by changing the "base" C-4 rate to a more accurate 8372Hz.
+
+when loading a previous-version song, make sure to set the `oldCenterRate` flag to true.
+
+## dev255 - per-channel arp speed
+
+the arp speed effect (E0xx) used to be global, affecting all channels.
+
+this version makes E0xx a channel effect, while also adding a song compatibility flag (`arpSpeedGlobal`) which is set when loading older songs.
+
+furthermore, an initial arp speed setting has been added for each sub-song. while this setting already existed as a field in the format, Furnace would ignore this value on playback and set it to 1.
+
+## dev254 - new asset dir format
+
+the asset directory block was devised back when we had a 256 asset limit.
+unfortunately I forgot to update it during dev233 when the max number of wavetables/samples was increased to 32768.
+
+this version introduces a new `ADI2` block, which uses 16-bit numbers for asset indexes (instead of 8-bit).
+
+## dev253 - C64 filter behavior change
+
+this update changes the conditions for applying a new cutoff value during processing of the cutoff macro.
+
+cutoff is global, so a mechanism to prevent race conditions is necessary.
+
+in previous versions, the condition to accept a cutoff value were:
+
+- do we have a cutoff macro value? if not, then don't.
+- is the macroRace flag set or this is the last channel which got a note? if so, then accept.
+
+this version changes this behavior to address an issue when using relative cutoff mode:
+
+- is the macroRace flag set or the filter mode is relative? if so, then accept it if there is a cutoff macro value.
+- otherwise, do we have a cutoff macro? if so accept it.
+
+set the `filterOld` chip flag to true when loading an older song.
+
+## dev252 - ExtCh per-operator block
+
+this version fixes an issue where the Block parameter was shared by all four ExtCh operators.
+
+it adds a compatibility flag to OPN family chips: `sharedExtBlock`.
+when set, it uses old behavior (should be set when loading a previous-version song).
+
 ## dev251 - OPZ LFO
 
 this version introduces an important change regarding OPZ.
@@ -354,4 +467,252 @@ the MultiPCM instrument format has seen a few changes.
 
 ## dev220 - SNES anti-click
 
+SNES anti-click is a feature which inserts a quick fade on a new note in order to reduce clicks/pops after notes.
+
+set the `antiClick` flag to false when loading an older module.
+
 ## 0.6.7 (219)
+
+this release fixes a major bug introduced in 0.6.6. NES DPCM sample loop wasn't working properly.
+
+it also fixes 60xy in FM chips not working if x is between 1 to 4 (set op mask for one op).
+
+## 0.6.6 (218)
+
+many changes in this version.
+
+## dev217 - VERA chip revision
+
+a new revision of VERA (used in the Commander X16 computer) has been issued, with the ability to XOR saw and triangle waves using the pulse width register.
+
+when loading older songs, set the `chipType` flag to 1 (this is the previous revision).
+
+## Import Test (216)
+
+this version is a special release given to testers for evaluating S3M/XM/IT import.
+
+## dev215 - use Momo on Linux releases
+
+this is an emergency release because libintl is very picky about locale. if it's not generated in your system, it'll refuse to set the language.
+
+Momo is a tiny implementation of libintl which handles only the core part - reading .mo (message object) files.
+it is used on the Windows releases because Windows doesn't come with libintl out of the box.
+
+## 0.6.5/Another undercooked furnace update (214)
+
+a software pitch driver (TIunA) has been added to TIA, courtesy of Natt Akuma.
+
+kind of a rushed release in order to meet a sudden deadline brought by the release of a demo using the newly-developed TIunA driver.
+
+## dev213 - BRR filter 0 option
+
+BRR (Bit Rate Reduction) is a lossy sample codec used in SNES.
+it uses elements of linear prediction to reduce the size of 16-bit samples by 71.875% with minimal fidelity loss.
+
+the sample is divided into blocks, each containing 16 discrete samples (stored as 4-bit) and one header byte.
+the header byte defines the range of these samples, the used filter coefficients and whether the sample has ended.
+
+normally, the first block uses filter 0, which acts as a pass-through. the samples are directly output, shifted by the range.
+the other filters use up to two previous samples to drive an accumulator, reducing fidelity loss due to lower bit depth.
+
+the main disadvantage is that you cannot arbitrarily set sample position as it would require you to land on a filter 0 block (otherwise face side effects such as overflow).
+
+this version adds a new option to the BRR encoder which forces all blocks to use filter 0, enabling safe use of the sample position effect.
+
+## 0.6.4 (212)
+
+## DX9 Test X/dev211
+
+released during addition of the DirectX 9 GUI render backend.
+
+## DX9 Test IX (210)
+
+released during DirectX 9 GUI render backend testing.
+
+## DX9 Test VIII (209)
+
+released while we were refining the DirectX 9 GUI render backend.
+
+## DX9 Test VII (208)
+
+released in the middle of a short journey to get DirectX 9 support in Furnace.
+
+## DX9 Test VI (207)
+
+released for DirectX 9 GUI render backend tests.
+
+## DX9 Test V (206)
+
+released... you may have guessed.
+
+## DX9 Test IV (205)
+
+see above.
+
+## DX9 Test III (204)
+
+see above.....
+
+## DX9 Test II (203)
+
+I know I've been bumping the version number so many times. I needed a unique version for each test stage.
+
+## DX9 Test I (202)
+
+this is the first version issued for evaluating a new DirectX 9 GUI render backend.
+
+## 0.6.3 (201)
+
+## dev200 - new sample offset effects
+
+this version tweaks the sample offset effects to increase precision and unlock the full 16-million-sample range.
+
+the previous effect was 9xxx, where `xxx` set the offset. this offset would be multiplied by 256.
+
+the effects are now 90xx, 91yy, and 92zz. together they set the sample offset to `zzyyxx`.
+
+set the compatibility flag `oldSampleOffset` to true when loading a song made in a previous version.
+
+## dev199 - SID2 cut/res range fix
+
+SID2 has a cutoff range of 0-4095 (twice of SID's) and a resonance range of 0-255 (versus 0-15).
+
+the values weren't being stored correctly. now they are.
+
+## dev198 - SID2
+
+SID2 is a fantasy chip created by LTVA to supposedly "fix" SID's flaws.
+
+higher cutoff/resonance precision, per-channel volume and bug-free envelopes are some of its features.
+
+the only addition in this format version is the `S2` instrument feature, which stores SID2 instrument data.
+
+## 0.6.2 (197)
+
+## dev196 - Game Boy Advance double wave width
+
+this version adds an option to Game Boy instruments which enables use of GBA's double wave width feature.
+
+the GBA version of Game Boy APU has two wave buffers, permitting click-free wave switching.
+either buffer may be selected, or both buffers can be combined to form a single, 64-step-wide waveform.
+
+## dev195 - C64 global macro race prevention
+
+C64's SID chip features a number of register which are useful, yet unfortunately global. these include volume, cutoff, resonance and filter mode.
+
+in previous versions, the channels were processed from first to last.
+this results in channel 3's macros taking priority over the previous channels, which is unintuitive.
+
+this version improves channel processing logic so that the last channel which played a note is the one driving global macros.
+
+set the `macroRace` chip flag to true when loading an older song.
+
+## dev194 - enable fixedAll chip flag by default.
+
+when that flag is set, fixed frequency mode on OPLL drums sets all drum frequencies at once (rather than upon new notes).
+
+this flag was introduced in a previous version, but remained off by default. this version changes that default to enabled.
+
+when loading a previous-version song, set this chip flag to false.
+
+## dev193 - AY wave macro de-crapification
+
+the AY-3-8910 chip has three bits for each channel which determine whether tone (square), noise and/or envelope are enabled.
+
+the wave macro was offset by 1 due to DefleMask's implementation of AY/SSG macros on Neo Geo - where 0 means tone, 1 noise and 2 tone+noise. yeah, there's no way to use envelope...
+
+Furnace maintained this un-natural structure while adding envelope support:
+- 3: envelope
+- 4: envelope+tone
+- 5: envelope+noise
+- 6: everything
+- 7: nothing
+
+this is so weird that I finally decided to clean it up in this version. now 0 means nothing and 7 is everything, the way it should be. a proper bitfield.
+
+when loading previous-version modules, make sure to set every AY waveform macro step to `(value+1)&7`.
+
+## 0.6.1 (192)
+
+## dev191 - remove ALWAYS\_SET\_VOLUME
+
+useless crap that was added as some kind of Defle compatibility thing.
+
+## dev190 - config version and color scheme guru mode
+
+Furnace allowed you to set two accent colors for the color scheme.
+
+this version adds a "guru mode", unleashing a larger set of color settings for fine-tuning.
+
+it also stores the version number to `configVersion` to tell future versions apart and apply necessary changes.
+
+## dev189 - separate chan osc visibility setting
+
+you can hide channels from view. this flag used to apply on both pattern view and per-channel oscilloscope.
+
+this version splits the flag into two and lets you set whether a channel is visible on the chan osc and/or pattern view.
+
+when loading a previous-version song, treat the channel visibility flags as one and apply it to both pattern and osc visibility.
+
+## dev188 - ceil volume scaling
+
+this version was part of a branch (which was eventually merged) adding an option to round up in the volume macro/channel volume scale function.
+
+by default it is off.
+
+## dev187 - major C64 changes
+
+in Furnace dev187 the volume and cutoff macros have been separated.
+however, there are two other changes as well: **inverted relative (non-absolute) cutoff macro**; and a new, improved Special macro.
+
+if version is less than 187, you must convert the Special macro:
+1. do not continue if ex4 is not a Sequence type macro!
+2. move bit 0 of ex4 macro data into bit 3.
+3. set bit 0 on all steps of ex4 macro to 1.
+4. if ex3 is not a Sequence type macro, stop here.
+5. if ex3 macro length is 0, stop here.
+6. merge the ex3 macro (former Special) into ex4 (former Test).
+  - use the largest size (between ex3 and ex4).
+  - if the ex3 macro is shorter than the ex4 one, use the last value of ex3, and vice-versa.
+  - if the ex4 macro length is 0, expand it to the largest size, and set all steps to 1.
+
+don't worry about loop or release...
+
+## dev186 - C64 update envelope on 1Exy
+
+the effect 1Exy is used to change the ADSR envelope parameters.
+
+however, it had a flaw: it wouldn't actually update the envelope. this version fixes that.
+
+set the `no1EUpdate` chip flag to true when loading an older song.
+
+## dev185 - Sound Unit hardware sweep sequences
+
+the Sound Unit has three sweep units per channel, controlling volume, frequency and cutoff respectively.
+
+this version adds hardware sequences to the instrument for an easier way of setting up sweeps.
+
+## dev184 - ????
+
+I have no idea what did I do in this version. it doesn't appear in git log for some reason.
+
+it apparently adds a new song compatibility flag to reset arp phase on new notes.
+
+## dev183 - improved NES DPCM sample maps
+
+this version introduces the `NE` instrument feature, allowing you to set a specific DPCM freq and initial delta counter value for each note in a sample map.
+
+## dev182 - active macro release
+
+two macro release modes are available, set on a per-macro basis.
+
+- Passive: when macro is released, let it play past the release point.
+- Active: when macro is released, immediately jump to the release point.
+
+the macro release mode was always Passive in previous versions.
+
+## 0.6 (181)
+
+the first real release in a year.
+
+## 0.6pre18 (180)
