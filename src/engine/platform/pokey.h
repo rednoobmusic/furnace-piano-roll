@@ -32,11 +32,12 @@ extern "C" {
 
 class DivPlatformPOKEY: public DivDispatch {
   struct Channel: public SharedChannel {
-    unsigned char wave;
+    unsigned char wave, audctl;
     bool ctlChanged;
     Channel(bool linear=true):
       SharedChannel(15,linear),
       wave(5),
+      audctl(0),
       ctlChanged(true) {}
   };
   Channel chan[4];
@@ -50,8 +51,10 @@ class DivPlatformPOKEY: public DivDispatch {
   };
   FixedQueue<QueuedWrite,128> writes;
   DivPitchTable pitchTable;
+  DivGlobalRegState audctlState;
   unsigned char audctl, skctl;
   bool audctlChanged, skctlChanged;
+  bool audctlCombine;
   unsigned char oscBufDelay;
   PokeyState pokey;
   AltASAP::Pokey altASAP;
@@ -67,6 +70,7 @@ class DivPlatformPOKEY: public DivDispatch {
     SharedChannel* getChanState(int chan);
     DivMacroInt* getChanMacroInt(int ch);
     void getPaired(int ch, std::vector<DivChannelPair>& ret);
+    DivGlobalRegState* getGlobalRegState(unsigned int index=0);
     DivDispatchOscBuffer* getOscBuffer(int chan);
     unsigned char* getRegisterPool();
     int getRegisterPoolSize();

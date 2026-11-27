@@ -46,6 +46,7 @@ bool DivEngine::loadMod(unsigned char* file, size_t len) {
     ds.compatFlags.rowResetsArpPos=true;
     ds.compatFlags.ignoreJumpAtEnd=false;
     ds.compatFlags.delayBehavior=0;
+    ds.compatFlags.oldCenterRate=true;
 
     int insCount=31;
     bool bypassLimits=false;
@@ -141,7 +142,7 @@ bool DivEngine::loadMod(unsigned char* file, size_t len) {
     unsigned char restartPos=reader.readC(); // restart position, unused
     logD("restart position byte: %.2x",restartPos);
     if (insCount==15) {
-      if (restartPos>0x60 && restartPos<0x80) {
+      if (restartPos>0x60 && restartPos<0x84) {
         logD("detected a Soundtracker module");
       } else {
         logD("no Soundtracker signature found");

@@ -231,6 +231,16 @@ class DivPlatformYM2610Base: public DivPlatformOPN {
       return 2;
     }
 
+    int getSampleGroup(int chan=0) {
+      if (chan>=adpcmBChanOffs) { // ADPCM-B
+        return 2;
+      }
+      if (chan>=adpcmAChanOffs) { // ADPCM-A
+        return 1;
+      }
+      return 0;
+    }
+
     const void* getSampleMem(int index) {
       return index == 0 ? adpcmAMem : index == 1 ? adpcmBMem : NULL;
     }
@@ -249,7 +259,7 @@ class DivPlatformYM2610Base: public DivPlatformOPN {
 
     bool isSampleLoaded(int index, int sample) {
       if (index<0 || index>1) return false;
-      if (sample<0 || sample>32767) return false;
+      if (sample<0 || sample>=getMaxSamples(index)) return false;
       return sampleLoaded[index][sample];
     }
 
@@ -407,7 +417,7 @@ class DivPlatformYM2610Base: public DivPlatformOPN {
     }
 
     DivPlatformYM2610Base(int ext, int psg, int adpcmA, int adpcmB, int chanCount):
-      DivPlatformOPN(ext,psg,adpcmA,adpcmB,chanCount,9440540.0, 72, 32, false, 16) {
+      DivPlatformOPN(ext,psg,adpcmA,adpcmB,chanCount,9437184.0, 72, 32, false, 16) {
       sampleOffA=new unsigned int[32768];
       sampleOffB=new unsigned int[32768];
       sampleLoaded[0]=new bool[32768];

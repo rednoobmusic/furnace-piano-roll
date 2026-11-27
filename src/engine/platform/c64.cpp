@@ -237,6 +237,7 @@ void DivPlatformC64::tick(bool sysTick) {
 
     if (chan[i].std.vol.had) {
       vol=MIN(15,chan[i].std.vol.val);
+      effectiveVolCh=i;
       willUpdateFilter=true;
     }
 
@@ -278,7 +279,9 @@ void DivPlatformC64::tick(bool sysTick) {
     }
     bool condition=chan[i].std.alg.will;
     DivInstrument* ins=parent->getIns(chan[i].ins,DIV_INS_C64);
-    if ((!ins->c64.filterIsAbs) || macroRace) {
+    if (filterOld) {
+      condition=chan[i].std.alg.had && (_i==2||macroRace);
+    } else if ((!ins->c64.filterIsAbs) || macroRace) {
       condition=chan[i].std.alg.had;
     }
     if (condition) { // new cutoff macro
@@ -499,6 +502,7 @@ int DivPlatformC64::dispatch(DivCommand c) {
       if (c.chan>2) break;
       if (chan[c.chan].vol!=c.value) {
         chan[c.chan].vol=c.value;
+        effectiveVolCh=c.chan;
         if (!chan[c.chan].std.vol.has) {
           chan[c.chan].outVol=c.value;
           vol=chan[c.chan].outVol;
@@ -806,6 +810,14 @@ DivChannelModeHints DivPlatformC64::getModeHints(int ch) {
   return ret;
 }
 
+DivGlobalRegState* DivPlatformC64::getGlobalRegState(unsigned int index) {
+  if (index==0) {
+    volState.effectiveChan=effectiveVolCh;
+    return &volState;
+  }
+  return NULL;
+}
+
 DivDispatchOscBuffer* DivPlatformC64::getOscBuffer(int ch) {
   return oscBuf[ch];
 }
@@ -851,6 +863,7 @@ void DivPlatformC64::reset() {
 
   cutoff_slide=0;
   pcmCycle=0;
+  effectiveVolCh=-1;
 
   if (sidCore==2) {
     dSID_init(sid_d,chipClock,rate,sidIs6581?6581:8580,needInitTables);
@@ -938,6 +951,7 @@ void DivPlatformC64::setFlags(const DivConfig& flags) {
   no1EUpdate=flags.getBool("no1EUpdate",false);
   multiplyRel=flags.getBool("multiplyRel",false);
   macroRace=flags.getBool("macroRace",false);
+  filterOld=flags.getBool("filterOld",false);
   testAD=((flags.getInt("testAttack",0)&15)<<4)|(flags.getInt("testDecay",0)&15);
   testSR=((flags.getInt("testSustain",0)&15)<<4)|(flags.getInt("testRelease",0)&15);
   initResetTime=flags.getInt("initResetTime",2);
@@ -1038,6 +1052,12 @@ int DivPlatformC64::init(DivEngine* p, int channels, int sugRate, const DivConfi
       sid->set_chip_model(MOS8580);
     }
   }
+
+  volState.name="Volume";
+  volState.type=1;
+  volState.bits=0;
+  volState.firstChan=0;
+  volState.lastChan=2;
 
   setFlags(flags);
 
